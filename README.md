@@ -367,27 +367,6 @@ URL: http://localhost:8000/demo
 
 ---
 
-## 📜 Scripts de Demostración Alternativos
-
-### Linux/Mac:
-```bash
-chmod +x scripts/demo_completa.sh
-./scripts/demo_completa.sh
-```
-
-### Windows:
-```cmd
-scripts\demo_completa.bat
-```
-
-### Python (Interactivo):
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install requests
-python3 scripts/demo_retry.py
-```
-
 ### Con Postman:
 Importar la colección desde: http://localhost:8000/docs → "Download OpenAPI schema"
 
