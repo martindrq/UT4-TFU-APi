@@ -149,11 +149,6 @@ UT3-TFU-APi/
 ├── init-db.sql             # Script inicialización PostgreSQL
 ├── init-ldap.ldif          # 🔐 Script inicialización LDAP con usuarios de prueba
 ├── README.md               # Este archivo
-├── ENV_TEMPLATE.md         # 📚 Plantillas de configuración por entorno
-├── EXTERNAL_CONFIGURATION_STORE.md # 📚 Documentación del patrón External Config Store
-├── RESUMEN_CACHE_ASIDE.md  # 📚 Documentación del patrón Cache-Aside
-├── RESUMEN_QUEUE_LOAD_LEVELING.md # 📚 Documentación del patrón Queue-Based Load Leveling
-└── PATRONES_SEGURIDAD.md   # 📚 Documentación de Gatekeeper y Federated Identity
 ```
 
 ##  Instrucciones de Despliegue
