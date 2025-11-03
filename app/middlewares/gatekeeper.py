@@ -43,6 +43,8 @@ class GatekeeperMiddleware:
     PUBLIC_ENDPOINTS = [
         "/",
         "/health",
+        "/stats",
+        "/cache/stats",
         "/docs",
         "/openapi.json",
         "/redoc",
@@ -63,6 +65,13 @@ class GatekeeperMiddleware:
         Implementa las validaciones de seguridad del Gatekeeper.
         """
         start_time = time.time()
+        
+        # Debug: Log para requests a endpoints protegidos
+        if not self._is_public_endpoint(request.url.path):
+            print(f"🔐 Gatekeeper procesando: {request.method} {request.url.path}")
+            auth_headers = {k: v for k, v in request.headers.items() if 'auth' in k.lower() or 'token' in k.lower()}
+            if auth_headers:
+                print(f"   Headers de auth encontrados: {list(auth_headers.keys())}")
         
         # 1. Verificar si es un endpoint público
         if self._is_public_endpoint(request.url.path):
@@ -86,6 +95,9 @@ class GatekeeperMiddleware:
         # 4. Validar token JWT
         token = self._extract_token(request)
         if not token:
+            # Log detallado para debugging
+            print(f"🚫 Token no encontrado para {request.method} {request.url.path}")
+            print(f"   Headers disponibles: {[h for h in request.headers.keys() if h.lower() in ['authorization', 'authorization-token', 'x-auth-token']]}")
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": "No se proporcionó token de autenticación"},
@@ -138,10 +150,47 @@ class GatekeeperMiddleware:
         return False
     
     def _extract_token(self, request: Request) -> Optional[str]:
-        """Extrae el token JWT del header Authorization"""
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            return auth_header.replace("Bearer ", "")
+        """Extrae el token JWT del header Authorization o alternativas"""
+        # Método 1: Intentar obtener el header Authorization (case-insensitive)
+        auth_header = None
+        for header_name, header_value in request.headers.items():
+            if header_name.lower() == "authorization":
+                auth_header = header_value
+                break
+        
+        if auth_header:
+            # Normalizar el header (eliminar espacios extra y hacer case-insensitive)
+            auth_header = auth_header.strip()
+            
+            # Verificar que comience con "Bearer" (case-insensitive)
+            if auth_header.lower().startswith("bearer "):
+                # Extraer el token (después de "Bearer ")
+                token = auth_header[7:].strip()  # "Bearer " tiene 7 caracteres
+                if token:
+                    return token
+            elif auth_header.lower().startswith("bearer"):
+                # Sin espacio después de Bearer (formato no estándar pero común)
+                token = auth_header[6:].strip()
+                if token:
+                    return token
+            else:
+                # Asumir que todo el header es el token (fallback)
+                if auth_header and len(auth_header) > 10:  # Los JWT típicamente son largos
+                    return auth_header
+        
+        # Método 2: Intentar desde query parameter (fallback para debugging)
+        token = request.query_params.get("token")
+        if token:
+            return token
+        
+        # Método 3: Intentar desde header personalizado (fallback)
+        for header_name in ["X-Auth-Token", "X-Access-Token", "Authorization-Token"]:
+            token = request.headers.get(header_name)
+            if token:
+                return token.strip()
+        
+        # Log para debugging si no se encontró token
+        print(f"⚠️  No se encontró token. Headers recibidos: {list(request.headers.keys())}")
         return None
     
     def _is_suspicious_request(self, request: Request) -> bool:

@@ -6,6 +6,7 @@ Incluye mecanismo de retry con backoff exponencial para alta disponibilidad.
 
 import logging
 import time
+import psycopg2
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -77,15 +78,11 @@ def test_connection():
         OperationalError: Si no se puede conectar después de todos los reintentos
     """
     logger.info("🔄 Intentando conectar a la base de datos...")
-    try:
-        with engine.connect() as connection:
-            result = connection.execute(text("SELECT 1"))
-            result.fetchone()
-            logger.info("✅ Conexión a la base de datos establecida exitosamente")
-            return True
-    except (OperationalError, DBAPIError) as e:
-        logger.error(f"❌ Error al conectar a la base de datos: {str(e)}")
-        raise
+    with engine.connect() as connection:
+        result = connection.execute(text("SELECT 1"))
+        result.fetchone()
+        logger.info("✅ Conexión a la base de datos establecida exitosamente")
+        return True
 
 @retry(
     stop=stop_after_attempt(MAX_RETRY_ATTEMPTS),
@@ -123,13 +120,25 @@ def get_db():
     finally:
         db.close()
 
+@retry(
+    stop=stop_after_attempt(MAX_RETRY_ATTEMPTS),
+    wait=wait_exponential(min=RETRY_MIN_WAIT, max=RETRY_MAX_WAIT),
+    retry=retry_if_exception_type((OperationalError, DBAPIError)),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    after=after_log(logger, logging.INFO)
+)
 def check_db_health():
     """
     Verifica el estado de salud de la conexión a la base de datos.
     Útil para health checks y monitoreo.
     
+    Implementa reintentos automáticos con backoff exponencial si falla la conexión.
+    
     Returns:
         dict: Estado de la conexión con detalles
+        
+    Raises:
+        OperationalError, DBAPIError: Si no se puede conectar después de todos los reintentos
     """
     try:
         with engine.connect() as connection:
@@ -149,8 +158,13 @@ def check_db_health():
                 "pool_checked_out": pool.checkedout(),
                 "pool_overflow": pool.overflow()
             }
-    except Exception as e:
+    except (OperationalError, DBAPIError) as e:
+        # Re-lanzar excepciones de conexión para que el decorador @retry las maneje
         logger.error(f"❌ Health check falló: {str(e)}")
+        raise
+    except Exception as e:
+        # Otras excepciones no deben reintentarse
+        logger.error(f"❌ Error inesperado en health check: {str(e)}")
         return {
             "status": "unhealthy",
             "database": "disconnected",

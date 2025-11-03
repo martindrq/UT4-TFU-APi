@@ -494,7 +494,6 @@
                 <div class="tabs">
                     <button class="tab active" onclick="switchTab('demo')">🎬 Demo Automática</button>
                     <button class="tab" onclick="switchTab('auth')">🔐 Seguridad (Gatekeeper + LDAP)</button>
-                    <button class="tab" onclick="switchTab('usuarios')">👥 Usuarios</button>
                     <button class="tab" onclick="switchTab('proyectos')">📋 Proyectos</button>
                     <button class="tab" onclick="switchTab('tareas')">✅ Tareas</button>
                     <button class="tab" onclick="switchTab('queue')">⚡ Queue Load Leveling</button>
@@ -788,44 +787,6 @@
                         <button class="btn" onclick="simulateRetry()">Simular Reintentos</button>
                         <button class="btn btn-danger" onclick="clearLogs()">Limpiar Logs</button>
                         <button class="btn" onclick="testPerformance()">Test Performance</button>
-                    </div>
-                </div>
-
-                <!-- Usuarios Tab -->
-                <div id="usuarios" class="tab-content">
-                    <h2>👥 Gestión de Usuarios</h2>
-                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px">
-                        <div>
-                            <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--gray-700)">Crear Usuario</h3>
-                            <div class="form-group">
-                                <label>Nombre</label>
-                                <input type="text" id="userName" placeholder="Juan Pérez" />
-                            </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" id="userEmail" placeholder="juan@ejemplo.com" />
-                            </div>
-                            <div class="form-group">
-                                <label>Rol</label>
-                                <select id="userRole">
-                                    <option value="admin">Admin</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="desarrollador">Desarrollador</option>
-                                </select>
-                            </div>
-                            <button class="btn btn-success" style="width: 100%" onclick="createUser()">
-                                Crear Usuario
-                            </button>
-                        </div>
-                        <div>
-                            <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--gray-700)">
-                                Lista de Usuarios
-                            </h3>
-                            <button class="btn btn-sm" onclick="loadUsers()" style="margin-bottom: 10px">
-                                Actualizar Lista
-                            </button>
-                            <div id="usersList"></div>
-                        </div>
                     </div>
                 </div>
 
@@ -1473,7 +1434,6 @@
                 event.target.classList.add("active");
                 document.getElementById(tabName).classList.add("active");
 
-                if (tabName === "usuarios") loadUsers();
                 if (tabName === "proyectos") loadProjects();
                 if (tabName === "tareas") loadTasks();
             }
@@ -1529,104 +1489,19 @@
 
             async function updateStats() {
                 try {
-                    const [users, projects, tasks] = await Promise.all([
-                        fetch(`${API_URL}/api/v1/usuarios`).then((r) => r.json()),
-                        fetch(`${API_URL}/api/v1/proyectos`).then((r) => r.json()),
-                        fetch(`${API_URL}/api/v1/tareas`).then((r) => r.json()),
-                    ]);
+                    const response = await fetch(`${API_URL}/stats`);
+                    const stats = await response.json();
 
-                    document.getElementById("userCount").textContent = users.length;
-                    document.getElementById("projectCount").textContent = projects.length;
-                    document.getElementById("taskCount").textContent = tasks.length;
+                    document.getElementById("userCount").textContent = stats.usuarios;
+                    document.getElementById("projectCount").textContent = stats.proyectos;
+                    document.getElementById("taskCount").textContent = stats.tareas;
 
                     addLog(
-                        `Estadísticas: ${users.length} usuarios, ${projects.length} proyectos, ${tasks.length} tareas`,
+                        `Estadísticas: ${stats.usuarios} usuarios, ${stats.proyectos} proyectos, ${stats.tareas} tareas`,
                         "success",
                     );
                 } catch (error) {
                     addLog(`Error al actualizar estadísticas: ${error.message}`, "error");
-                }
-            }
-
-            async function createUser() {
-                const userData = {
-                    nombre: document.getElementById("userName").value,
-                    email: document.getElementById("userEmail").value,
-                    rol: document.getElementById("userRole").value,
-                };
-
-                if (!userData.nombre || !userData.email) {
-                    addLog("Por favor completa todos los campos", "warning");
-                    return;
-                }
-
-                addLog(`POST /api/v1/usuarios - Creando usuario: ${userData.nombre}`, "info");
-
-                try {
-                    const response = await fetch(`${API_URL}/api/v1/usuarios`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(userData),
-                    });
-
-                    const data = await response.json();
-
-                    if (response.ok) {
-                        addLog(`Usuario creado: ${data.nombre} (ID: ${data.id})`, "success");
-                        document.getElementById("userName").value = "";
-                        document.getElementById("userEmail").value = "";
-                        loadUsers();
-                        updateStats();
-                    } else {
-                        addLog(`Error: ${data.detail || "No se pudo crear el usuario"}`, "error");
-                    }
-                } catch (error) {
-                    addLog(`Error de conexión: ${error.message}`, "error");
-                }
-            }
-
-            async function loadUsers() {
-                try {
-                    addLog("Cargando usuarios...", "info");
-                    const response = await fetch(`${API_URL}/api/v1/usuarios`);
-                    const users = await response.json();
-
-                    const usersList = document.getElementById("usersList");
-                    if (users.length === 0) {
-                        usersList.innerHTML =
-                            '<p style="color: var(--gray-500); text-align: center; padding: 20px;">No hay usuarios</p>';
-                        return;
-                    }
-
-                    usersList.innerHTML = `
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nombre</th>
-                                <th>Email</th>
-                                <th>Rol</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${users
-                                .map(
-                                    (user) => `
-                                <tr>
-                                    <td>${user.id}</td>
-                                    <td>${user.nombre}</td>
-                                    <td>${user.email}</td>
-                                    <td><span class="badge badge-info">${user.rol}</span></td>
-                                </tr>
-                            `,
-                                )
-                                .join("")}
-                        </tbody>
-                    </table>
-                `;
-                    addLog(`${users.length} usuarios cargados`, "success");
-                } catch (error) {
-                    addLog(`Error al cargar usuarios: ${error.message}`, "error");
                 }
             }
 
@@ -1642,12 +1517,20 @@
                     return;
                 }
 
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero", "warning");
+                    return;
+                }
+
                 addLog(`POST /api/v1/proyectos - Creando: ${projectData.nombre}`, "info");
 
                 try {
                     const response = await fetch(`${API_URL}/api/v1/proyectos`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${authToken}`
+                        },
                         body: JSON.stringify(projectData),
                     });
 
@@ -1669,12 +1552,26 @@
 
             async function loadProjects() {
                 try {
+                    if (!authToken) {
+                        addLog("⚠️ Debes iniciar sesión primero", "warning");
+                        return;
+                    }
+
                     addLog("Cargando proyectos...", "info");
-                    const response = await fetch(`${API_URL}/api/v1/proyectos`);
+                    const response = await fetch(`${API_URL}/api/v1/proyectos`, {
+                        headers: { Authorization: `Bearer ${authToken}` },
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        addLog(`Error: ${error.detail || 'Error al cargar proyectos'}`, "error");
+                        return;
+                    }
+
                     const projects = await response.json();
 
                     const projectsList = document.getElementById("projectsList");
-                    if (projects.length === 0) {
+                    if (!Array.isArray(projects) || projects.length === 0) {
                         projectsList.innerHTML =
                             '<p style="color: var(--gray-500); text-align: center; padding: 20px;">No hay proyectos</p>';
                         return;
@@ -1726,12 +1623,20 @@
                     return;
                 }
 
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero", "warning");
+                    return;
+                }
+
                 addLog(`POST /api/v1/tareas - Creando: ${taskData.titulo}`, "info");
 
                 try {
                     const response = await fetch(`${API_URL}/api/v1/tareas`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${authToken}`
+                        },
                         body: JSON.stringify(taskData),
                     });
 
@@ -1753,12 +1658,26 @@
 
             async function loadTasks() {
                 try {
+                    if (!authToken) {
+                        addLog("⚠️ Debes iniciar sesión primero", "warning");
+                        return;
+                    }
+
                     addLog("Cargando tareas...", "info");
-                    const response = await fetch(`${API_URL}/api/v1/tareas`);
+                    const response = await fetch(`${API_URL}/api/v1/tareas`, {
+                        headers: { Authorization: `Bearer ${authToken}` },
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        addLog(`Error: ${error.detail || 'Error al cargar tareas'}`, "error");
+                        return;
+                    }
+
                     const tasks = await response.json();
 
                     const tasksList = document.getElementById("tasksList");
-                    if (tasks.length === 0) {
+                    if (!Array.isArray(tasks) || tasks.length === 0) {
                         tasksList.innerHTML =
                             '<p style="color: var(--gray-500); text-align: center; padding: 20px;">No hay tareas</p>';
                         return;
@@ -1820,7 +1739,7 @@
                 try {
                     const promises = [];
                     for (let i = 0; i < 10; i++) {
-                        promises.push(fetch(`${API_URL}/api/v1/usuarios`));
+                        promises.push(fetch(`${API_URL}/health`));
                     }
 
                     await Promise.all(promises);
@@ -1857,19 +1776,7 @@
                     await checkHealth();
                     await sleep(2000);
 
-                    addLog("════════ PASO 2: CREAR USUARIOS ════════", "info");
-                    const users = [
-                        { nombre: "Ana García", email: "ana@demo.com", rol: "admin" },
-                        { nombre: "Carlos López", email: "carlos@demo.com", rol: "manager" },
-                        { nombre: "María Rodríguez", email: "maria@demo.com", rol: "desarrollador" },
-                    ];
-
-                    for (const user of users) {
-                        await createUserAPI(user);
-                        await sleep(1000);
-                    }
-
-                    addLog("════════ PASO 3: CREAR PROYECTOS ════════", "info");
+                    addLog("════════ PASO 2: CREAR PROYECTOS ════════", "info");
                     const projects = [
                         { nombre: "Sistema de Facturación", descripcion: "Sistema web", estado: "activo" },
                         { nombre: "App Móvil", descripcion: "App para vendedores", estado: "activo" },
@@ -1880,7 +1787,7 @@
                         await sleep(1000);
                     }
 
-                    addLog("════════ PASO 4: CREAR TAREAS ════════", "info");
+                    addLog("════════ PASO 3: CREAR TAREAS ════════", "info");
                     const tasks = [
                         {
                             titulo: "Diseñar BD",
@@ -1910,21 +1817,17 @@
                         await sleep(1000);
                     }
 
-                    addLog("════════ PASO 5: VALIDACIONES ════════", "info");
-                    await createUserAPI({ nombre: "Test", email: "ana@demo.com", rol: "desarrollador" });
-                    await sleep(1000);
-
-                    addLog("════════ PASO 6: SISTEMA DE RETRY ════════", "info");
+                    addLog("════════ PASO 4: SISTEMA DE RETRY ════════", "info");
                     await simulateRetry();
                     await sleep(1000);
 
-                    addLog("════════ PASO 7: TEST PERFORMANCE ════════", "info");
+                    addLog("════════ PASO 5: TEST PERFORMANCE ════════", "info");
                     await testPerformance();
 
-                    addLog("════════ PASO 8: ESTADÍSTICAS ════════", "info");
+                    addLog("════════ PASO 6: ESTADÍSTICAS ════════", "info");
                     await updateStats();
 
-                    addLog("════════ PASO 9: ESTADÍSTICAS DE CACHÉ ════════", "info");
+                    addLog("════════ PASO 7: ESTADÍSTICAS DE CACHÉ ════════", "info");
                     await checkCacheStats();
 
                     addLog("✅ Demo completada exitosamente", "success");
@@ -1936,30 +1839,19 @@
                 }
             }
 
-            async function createUserAPI(userData) {
-                try {
-                    const response = await fetch(`${API_URL}/api/v1/usuarios`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(userData),
-                    });
-                    const data = await response.json();
-
-                    if (response.ok) {
-                        addLog(`Usuario creado: ${data.nombre} (ID: ${data.id})`, "success");
-                    } else {
-                        addLog(`${data.detail || "Error al crear usuario"}`, "warning");
-                    }
-                } catch (error) {
-                    addLog(`Error: ${error.message}`, "error");
-                }
-            }
-
             async function createProjectAPI(projectData) {
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero para crear proyectos", "warning");
+                    return;
+                }
+                
                 try {
                     const response = await fetch(`${API_URL}/api/v1/proyectos`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${authToken}`
+                        },
                         body: JSON.stringify(projectData),
                     });
                     const data = await response.json();
@@ -1975,10 +1867,18 @@
             }
 
             async function createTaskAPI(taskData) {
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero para crear tareas", "warning");
+                    return;
+                }
+                
                 try {
                     const response = await fetch(`${API_URL}/api/v1/tareas`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${authToken}`
+                        },
                         body: JSON.stringify(taskData),
                     });
                     const data = await response.json();
@@ -2182,7 +2082,7 @@
                 addLog("Probando acceso sin token (debería fallar con 401)...", "info");
 
                 try {
-                    const response = await fetch(`${API_URL}/api/v1/usuarios/`);
+                    const response = await fetch(`${API_URL}/api/v1/proyectos/`);
                     const data = await response.json();
 
                     if (response.status === 401) {
@@ -2206,9 +2106,9 @@
 
                 addLog(`Probando permisos para rol: ${currentUser.rol}...`, "info");
 
-                // Test 1: Crear usuario (requiere admin o manager)
+                // Test 1: Crear proyecto (requiere admin o manager)
                 try {
-                    const response = await fetch(`${API_URL}/api/v1/usuarios`, {
+                    const response = await fetch(`${API_URL}/api/v1/proyectos`, {
                         method: "POST",
                         headers: {
                             Authorization: `Bearer ${authToken}`,
@@ -2216,15 +2116,15 @@
                         },
                         body: JSON.stringify({
                             nombre: "Test Permisos",
-                            email: `test.${Date.now()}@ejemplo.com`,
-                            rol: "desarrollador",
+                            descripcion: `Proyecto de prueba ${Date.now()}`,
+                            estado: "activo",
                         }),
                     });
 
                     if (response.ok) {
-                        addLog(`✅ Permiso CREAR USUARIO: Autorizado`, "success");
+                        addLog(`✅ Permiso CREAR PROYECTO: Autorizado`, "success");
                     } else {
-                        addLog(`❌ Permiso CREAR USUARIO: Denegado (${response.status})`, "warning");
+                        addLog(`❌ Permiso CREAR PROYECTO: Denegado (${response.status})`, "warning");
                     }
                 } catch (error) {
                     addLog(`Error en test de permisos: ${error.message}`, "error");
@@ -2266,7 +2166,7 @@
 
                 try {
                     const response = await fetch(
-                        `${API_URL}/api/v1/usuarios/?search=${encodeURIComponent(xssPayload)}`,
+                        `${API_URL}/api/v1/proyectos/?search=${encodeURIComponent(xssPayload)}`,
                     );
                     const data = await response.json();
 
@@ -2287,7 +2187,7 @@
                 addLog("🚫 Probando token inválido...", "info");
 
                 try {
-                    const response = await fetch(`${API_URL}/api/v1/usuarios/`, {
+                    const response = await fetch(`${API_URL}/api/v1/proyectos/`, {
                         headers: { Authorization: "Bearer token_invalido_xyz123" },
                     });
                     const data = await response.json();
@@ -2310,7 +2210,7 @@
 
                 try {
                     const response = await fetch(
-                        `${API_URL}/api/v1/usuarios/?nombre=${encodeURIComponent(sqlPayload)}`,
+                        `${API_URL}/api/v1/proyectos/?nombre=${encodeURIComponent(sqlPayload)}`,
                     );
                     const data = await response.json();
 
@@ -2363,7 +2263,7 @@
                 // Test 2: Endpoint protegido sin token
                 addLog("Test 2/6: Endpoint protegido sin token debe fallar", "info");
                 try {
-                    const r2 = await fetch(`${API_URL}/api/v1/usuarios/`);
+                    const r2 = await fetch(`${API_URL}/api/v1/proyectos/`);
                     if (r2.status === 401) {
                         addLog("✅ Test 2 PASADO (HTTP 401)", "success");
                         results.passed++;
@@ -2411,7 +2311,7 @@
                 // Test 4: Endpoint protegido con token válido
                 addLog("Test 4/6: Endpoint protegido con token válido", "info");
                 try {
-                    const r4 = await fetch(`${API_URL}/api/v1/usuarios/`, {
+                    const r4 = await fetch(`${API_URL}/api/v1/proyectos/`, {
                         headers: { Authorization: `Bearer ${authToken}` },
                     });
                     if (r4.ok) {
@@ -2432,7 +2332,7 @@
                 // Test 5: Token inválido
                 addLog("Test 5/6: Token inválido debe ser rechazado", "info");
                 try {
-                    const r5 = await fetch(`${API_URL}/api/v1/usuarios/`, {
+                    const r5 = await fetch(`${API_URL}/api/v1/proyectos/`, {
                         headers: { Authorization: "Bearer token_invalido" },
                     });
                     if (r5.status === 401) {
@@ -2453,7 +2353,7 @@
                 // Test 6: Protección XSS
                 addLog("Test 6/6: Protección contra XSS", "info");
                 try {
-                    const r6 = await fetch(`${API_URL}/api/v1/usuarios/?search=%3Cscript%3Ealert('xss')%3C/script%3E`);
+                    const r6 = await fetch(`${API_URL}/api/v1/proyectos/?search=%3Cscript%3Ealert('xss')%3C/script%3E`);
                     if (r6.status === 400 || r6.status === 401) {
                         addLog(`✅ Test 6 PASADO (HTTP ${r6.status})`, "success");
                         results.passed++;
@@ -2681,10 +2581,17 @@
             let jobsCreatedCount = 0;
 
             async function updateQueueStats() {
+                if (!authToken) {
+                    // Silencioso si no hay token, solo actualiza UI con valores por defecto
+                    return;
+                }
+                
                 try {
                     addLog("Consultando estadísticas de la cola...", "info");
 
-                    const response = await fetch(`${API_URL}/api/v1/tareas/queue/stats`);
+                    const response = await fetch(`${API_URL}/api/v1/tareas/queue/stats`, {
+                        headers: { "Authorization": `Bearer ${authToken}` }
+                    });
                     const data = await response.json();
 
                     if (response.ok) {
@@ -2708,6 +2615,11 @@
                 const title = document.getElementById("queueTaskTitle").value || "Tarea de prueba Load Leveling";
                 const priority = document.getElementById("queueTaskPriority").value;
 
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero", "warning");
+                    return;
+                }
+
                 const startTime = performance.now();
 
                 try {
@@ -2715,7 +2627,10 @@
 
                     const response = await fetch(`${API_URL}/api/v1/tareas/`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${authToken}`
+                        },
                         body: JSON.stringify({
                             titulo: title,
                             descripcion: `Tarea creada desde demo web a las ${new Date().toLocaleTimeString()}`,
@@ -2771,10 +2686,17 @@
                     return;
                 }
 
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero", "warning");
+                    return;
+                }
+
                 try {
                     addLog(`Consultando estado del job ${jobId.substring(0, 8)}...`, "info");
 
-                    const response = await fetch(`${API_URL}/api/v1/tareas/jobs/${jobId}`);
+                    const response = await fetch(`${API_URL}/api/v1/tareas/jobs/${jobId}`, {
+                        headers: { "Authorization": `Bearer ${authToken}` }
+                    });
                     const data = await response.json();
 
                     if (response.ok) {
@@ -2807,10 +2729,17 @@
                     return;
                 }
 
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero", "warning");
+                    return;
+                }
+
                 try {
                     addLog(`Obteniendo resultado del job ${jobId.substring(0, 8)}...`, "info");
 
-                    const response = await fetch(`${API_URL}/api/v1/tareas/jobs/${jobId}/result`);
+                    const response = await fetch(`${API_URL}/api/v1/tareas/jobs/${jobId}/result`, {
+                        headers: { "Authorization": `Bearer ${authToken}` }
+                    });
                     const data = await response.json();
 
                     if (response.ok) {
@@ -2838,6 +2767,11 @@
             async function createConcurrentTasks() {
                 const count = parseInt(document.getElementById("concurrentTasks").value) || 10;
 
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero", "warning");
+                    return;
+                }
+
                 addLog(`🔥 Iniciando creación concurrente de ${count} tareas...`, "info");
 
                 const startTime = performance.now();
@@ -2846,7 +2780,10 @@
                 for (let i = 1; i <= count; i++) {
                     const promise = fetch(`${API_URL}/api/v1/tareas/`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${authToken}`
+                        },
                         body: JSON.stringify({
                             titulo: `Tarea Concurrente ${i}/${count}`,
                             descripcion: `Tarea de prueba de carga - Batch ${new Date().getTime()}`,
@@ -2907,6 +2844,11 @@
                     return;
                 }
 
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero", "warning");
+                    return;
+                }
+
                 addLog(`Monitoreando ${activeJobs.length} jobs...`, "info");
 
                 let completedCount = 0;
@@ -2915,7 +2857,9 @@
 
                 for (const job of activeJobs.slice(0, 10)) {
                     try {
-                        const response = await fetch(`${API_URL}/api/v1/tareas/jobs/${job.job_id}`);
+                        const response = await fetch(`${API_URL}/api/v1/tareas/jobs/${job.job_id}`, {
+                            headers: { "Authorization": `Bearer ${authToken}` }
+                        });
                         if (response.ok) {
                             const data = await response.json();
                             job.status = data.status;
@@ -2942,12 +2886,18 @@
             }
 
             async function monitorJob(jobId) {
+                if (!authToken) {
+                    return; // Silencioso si no hay token
+                }
+                
                 let attempts = 0;
                 const maxAttempts = 10;
 
                 const checkStatus = async () => {
                     try {
-                        const response = await fetch(`${API_URL}/api/v1/tareas/jobs/${jobId}`);
+                        const response = await fetch(`${API_URL}/api/v1/tareas/jobs/${jobId}`, {
+                            headers: { "Authorization": `Bearer ${authToken}` }
+                        });
                         if (response.ok) {
                             const data = await response.json();
 

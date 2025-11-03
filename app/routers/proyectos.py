@@ -107,12 +107,16 @@ async def listar_proyectos(
             "estado": p.estado,
             "fecha_inicio": p.fecha_inicio.isoformat() if p.fecha_inicio else None,
             "fecha_fin": p.fecha_fin.isoformat() if p.fecha_fin else None,
+            "fecha_creacion": p.fecha_creacion.isoformat() if p.fecha_creacion else None,
+            "fecha_actualizacion": p.fecha_actualizacion.isoformat() if p.fecha_actualizacion else None,
             "usuarios": [
                 {
                     "id": u.id,
                     "nombre": u.nombre,
                     "email": u.email,
-                    "rol": u.rol
+                    "rol": u.rol,
+                    "fecha_creacion": u.fecha_creacion.isoformat() if u.fecha_creacion else None,
+                    "fecha_actualizacion": u.fecha_actualizacion.isoformat() if u.fecha_actualizacion else None
                 } for u in p.usuarios
             ]
         } for p in proyectos
@@ -120,7 +124,7 @@ async def listar_proyectos(
     
     cache.set_proyectos_list_in_cache(proyectos_dict, skip, limit, estado)
     
-    return proyectos
+    return proyectos_dict
 
 @router.get("/{proyecto_id}", response_model=ProyectoResponse)
 async def obtener_proyecto(
@@ -160,19 +164,23 @@ async def obtener_proyecto(
         "estado": proyecto.estado,
         "fecha_inicio": proyecto.fecha_inicio.isoformat() if proyecto.fecha_inicio else None,
         "fecha_fin": proyecto.fecha_fin.isoformat() if proyecto.fecha_fin else None,
+        "fecha_creacion": proyecto.fecha_creacion.isoformat() if proyecto.fecha_creacion else None,
+        "fecha_actualizacion": proyecto.fecha_actualizacion.isoformat() if proyecto.fecha_actualizacion else None,
         "usuarios": [
             {
                 "id": u.id,
                 "nombre": u.nombre,
                 "email": u.email,
-                "rol": u.rol
+                "rol": u.rol,
+                "fecha_creacion": u.fecha_creacion.isoformat() if u.fecha_creacion else None,
+                "fecha_actualizacion": u.fecha_actualizacion.isoformat() if u.fecha_actualizacion else None
             } for u in proyecto.usuarios
         ]
     }
     
     cache.set_proyecto_in_cache(proyecto_id, proyecto_dict)
     
-    return proyecto
+    return proyecto_dict
 
 @router.put("/{proyecto_id}", response_model=ProyectoResponse)
 async def actualizar_proyecto(

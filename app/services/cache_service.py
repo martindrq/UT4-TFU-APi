@@ -358,17 +358,21 @@ def get_cache_stats() -> dict:
     
     try:
         info = redis_client.info()
+        hits = info.get("keyspace_hits", 0)
+        misses = info.get("keyspace_misses", 0)
+        total_requests = hits + misses
+        
+        # Calcular hit rate, evitando división por cero
+        hit_rate = (hits / total_requests * 100) if total_requests > 0 else 0.0
+        
         return {
             "available": True,
             "connected_clients": info.get("connected_clients", 0),
             "used_memory_human": info.get("used_memory_human", "N/A"),
             "total_keys": redis_client.dbsize(),
-            "hits": info.get("keyspace_hits", 0),
-            "misses": info.get("keyspace_misses", 0),
-            "hit_rate": (
-                info.get("keyspace_hits", 0) / 
-                (info.get("keyspace_hits", 0) + info.get("keyspace_misses", 1))
-            ) * 100
+            "hits": hits,
+            "misses": misses,
+            "hit_rate": round(hit_rate, 2)
         }
     except redis.RedisError as e:
         return {

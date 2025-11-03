@@ -224,12 +224,6 @@ async def listar_tareas(
     - **estado**: Filtrar por estado (pendiente, en_progreso, completada)
     - **usuario_responsable_id**: Filtrar por usuario responsable
     """
-    #Intentar obtener desde caché (Cache-Aside)
-    cached_tareas = cache.get_tareas_list_from_cache(
-        skip, limit, proyecto_id, estado, usuario_responsable_id
-    )
-    if cached_tareas is not None:
-        return cached_tareas
     
     #Si no está en caché, consultar base de datos
     query = db.query(Tarea)
@@ -253,6 +247,7 @@ async def listar_tareas(
             "estado": t.estado,
             "prioridad": t.prioridad,
             "fecha_creacion": t.fecha_creacion.isoformat() if t.fecha_creacion else None,
+            "fecha_actualizacion": t.fecha_actualizacion.isoformat() if t.fecha_actualizacion else None,
             "fecha_vencimiento": t.fecha_vencimiento.isoformat() if t.fecha_vencimiento else None,
             "proyecto_id": t.proyecto_id,
             "usuario_responsable_id": t.usuario_responsable_id,
@@ -260,7 +255,9 @@ async def listar_tareas(
                 "id": t.usuario_responsable.id,
                 "nombre": t.usuario_responsable.nombre,
                 "email": t.usuario_responsable.email,
-                "rol": t.usuario_responsable.rol
+                "rol": t.usuario_responsable.rol,
+                "fecha_creacion": t.usuario_responsable.fecha_creacion.isoformat() if t.usuario_responsable.fecha_creacion else None,
+                "fecha_actualizacion": t.usuario_responsable.fecha_actualizacion.isoformat() if t.usuario_responsable.fecha_actualizacion else None
             } if t.usuario_responsable else None,
             "proyecto": {
                 "id": t.proyecto.id,
@@ -270,11 +267,7 @@ async def listar_tareas(
         } for t in tareas
     ]
     
-    cache.set_tareas_list_in_cache(
-        tareas_dict, skip, limit, proyecto_id, estado, usuario_responsable_id
-    )
-    
-    return tareas
+    return tareas_dict
 
 @router.get("/{tarea_id}", response_model=TareaResponse)
 async def obtener_tarea(
@@ -314,6 +307,7 @@ async def obtener_tarea(
         "estado": tarea.estado,
         "prioridad": tarea.prioridad,
         "fecha_creacion": tarea.fecha_creacion.isoformat() if tarea.fecha_creacion else None,
+        "fecha_actualizacion": tarea.fecha_actualizacion.isoformat() if tarea.fecha_actualizacion else None,
         "fecha_vencimiento": tarea.fecha_vencimiento.isoformat() if tarea.fecha_vencimiento else None,
         "proyecto_id": tarea.proyecto_id,
         "usuario_responsable_id": tarea.usuario_responsable_id,
@@ -321,7 +315,9 @@ async def obtener_tarea(
             "id": tarea.usuario_responsable.id,
             "nombre": tarea.usuario_responsable.nombre,
             "email": tarea.usuario_responsable.email,
-            "rol": tarea.usuario_responsable.rol
+            "rol": tarea.usuario_responsable.rol,
+            "fecha_creacion": tarea.usuario_responsable.fecha_creacion.isoformat() if tarea.usuario_responsable.fecha_creacion else None,
+            "fecha_actualizacion": tarea.usuario_responsable.fecha_actualizacion.isoformat() if tarea.usuario_responsable.fecha_actualizacion else None
         } if tarea.usuario_responsable else None,
         "proyecto": {
             "id": tarea.proyecto.id,
@@ -332,7 +328,7 @@ async def obtener_tarea(
     
     cache.set_tarea_in_cache(tarea_id, tarea_dict)
     
-    return tarea
+    return tarea_dict
 
 @router.put("/{tarea_id}", response_model=TareaResponse)
 async def actualizar_tarea(

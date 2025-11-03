@@ -163,7 +163,7 @@ async def get_user_permissions(current_user: dict = Depends(get_current_user)):
     
     Útil para que el frontend determine qué acciones puede realizar el usuario.
     """
-    from app.gatekeeper import PermissionChecker
+    from app.middlewares.gatekeeper import PermissionChecker
     
     role = current_user.get("rol", "desarrollador")
     permissions = PermissionChecker.ROLE_PERMISSIONS.get(role, [])

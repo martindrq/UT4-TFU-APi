@@ -202,8 +202,6 @@ UT3-TFU-APi/
 - **Redis** (Cache + Queue): localhost:6379
 - **Adminer** (Administrador BD): http://localhost:8080
 
-> 💡 **Tip**: La demo web interactiva incluye interfaz completa para gestionar usuarios, proyectos, tareas y ver el sistema de retry en acción. Ver [DEMO_INSTRUCCIONES.md](DEMO_INSTRUCCIONES.md)
-
 ## Endpoints Principales
 
 ### GestorUsuarios (`/api/v1/usuarios`)

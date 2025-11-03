@@ -4,16 +4,17 @@ Implementa arquitectura modular con componentes independientes y sin estado.
 Cumple con principios ACID, escalabilidad horizontal y despliegue en contenedores.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import uvicorn
 from pathlib import Path
+from sqlalchemy.orm import Session
 
 # Importar configuración centralizada (External Configuration Store Pattern)
-from app.config import settings, create_tables, test_connection, check_db_health
+from app.config import settings, create_tables, test_connection, check_db_health, get_db
 
 # Importar servicios
 from app.services import cache_service as cache
@@ -193,13 +194,60 @@ async def root():
 @app.get("/health", tags=["Sistema"])
 async def health_check():
     """
-    Health check endpoint para monitoreo de contenedores.
-    Verifica que la aplicación esté respondiendo correctamente.
+    Health check endpoint para monitoreo de contenedores y aplicaciones.
+    Verifica que la aplicación y la base de datos estén respondiendo correctamente.
+    
+    Si la conexión falla después de todos los reintentos, retorna estado "unhealthy"
+    sin lanzar excepción HTTP (para que el monitoreo pueda detectar el problema).
     """
-    return {
-        "status": "healthy",
-        "service": "mini-gestor-proyectos-api"
-    }
+    try:
+        db_health = check_db_health()
+        
+        # Determinar el estado general del sistema
+        overall_status = "healthy" if db_health["status"] == "healthy" else "unhealthy"
+        
+        return {
+            "status": overall_status,
+            "service": "mini-gestor-proyectos-api",
+            "database": db_health
+        }
+    except Exception as e:
+        # Si después de todos los reintentos aún falla, retornar estado unhealthy
+        # sin lanzar excepción HTTP para que el monitoreo pueda detectarlo
+        return {
+            "status": "unhealthy",
+            "service": "mini-gestor-proyectos-api",
+            "database": {
+                "status": "unhealthy",
+                "database": "disconnected",
+                "error": str(e)
+            }
+        }
+
+# Endpoint público para estadísticas generales
+@app.get("/stats", tags=["Sistema"])
+async def get_stats(db: Session = Depends(get_db)):
+    """
+    Obtener estadísticas generales del sistema (conteos).
+    Endpoint público para mostrar métricas básicas sin exponer datos sensibles.
+    """
+    from app.models import Usuario, Proyecto, Tarea
+    
+    try:
+        user_count = db.query(Usuario).count()
+        project_count = db.query(Proyecto).count()
+        task_count = db.query(Tarea).count()
+        
+        return {
+            "usuarios": user_count,
+            "proyectos": project_count,
+            "tareas": task_count
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener estadísticas: {str(e)}"
+        )
 
 # Endpoint para estadísticas de caché
 @app.get("/cache/stats", tags=["Sistema"])
