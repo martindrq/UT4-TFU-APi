@@ -45,7 +45,6 @@ API REST completa para un mini gestor de proyectos que implementa tres component
 - **Nivelación de Carga**: Absorbe picos de demanda sin degradación
 - **Reintentos Automáticos**: Sistema robusto de reintentos con límites
 - **Seguimiento de Estado**: job_id para monitorear procesamiento
-- **Ver documentación detallada**: [RESUMEN_QUEUE_LOAD_LEVELING.md](./RESUMEN_QUEUE_LOAD_LEVELING.md)
 
 ### 7. Patrones de Seguridad
 
@@ -67,7 +66,6 @@ API REST completa para un mini gestor de proyectos que implementa tres component
 - **Tokens JWT Internos**: Generación de tokens después de validación LDAP
 - **Integración Empresarial**: Compatible con Active Directory y OpenLDAP
 - **Gestión Centralizada**: Usuarios gestionados en directorio único
-- **Ver documentación detallada**: [PATRONES_SEGURIDAD.md](./PATRONES_SEGURIDAD.md)
 
 ### 8. External Configuration Store (Configuración Externa)
 - **Separación Código-Configuración**: Variables de entorno externas al código
@@ -77,8 +75,6 @@ API REST completa para un mini gestor de proyectos que implementa tres component
 - **Docker Integration**: Variables interpoladas en docker-compose.yaml
 - **Validación Automática**: Verificación de configuración al inicio
 - **Sin Recompilación**: Modificar parámetros sin cambiar código
-- **12 Factor App Compliant**: Siguiendo mejores prácticas de cloud native
-- **Ver documentación detallada**: [EXTERNAL_CONFIGURATION_STORE.md](./EXTERNAL_CONFIGURATION_STORE.md)
 
 ## Estructura del Proyecto
 
@@ -93,8 +89,6 @@ El proyecto está organizado siguiendo una **arquitectura en capas técnicas** q
 - **services/**: Lógica de negocio reutilizable (auth, cache, queue)
 - **middlewares/**: Procesamiento transversal de requests (seguridad, logging)
 - **routers/**: Controladores que exponen los endpoints HTTP
-
-> 📖 **Ver documentación completa de la arquitectura**: [ARQUITECTURA.md](./ARQUITECTURA.md)
 
 ```
 UT3-TFU-APi/
@@ -184,17 +178,16 @@ UT3-TFU-APi/
 ### Servicios Disponibles
 
 - **API FastAPI**: http://localhost:8000
-  - **Demo Web Interactiva**: http://localhost:8000/demo 🎨 ⭐ **NUEVO**
+  - **Demo Web Interactiva**: http://localhost:8000/demo 
   - Documentación: http://localhost:8000/docs
-  - ReDoc: http://localhost:8000/redoc
   - Health Check: http://localhost:8000/health
-  - **Login LDAP**: http://localhost:8000/api/v1/auth/login 🔐 **NUEVO**
-  - **Estado Auth**: http://localhost:8000/api/v1/auth/status 🔐 **NUEVO**
+  - **Login LDAP**: http://localhost:8000/api/v1/auth/login 
+  - **Estado Auth**: http://localhost:8000/api/v1/auth/status
 - **PostgreSQL**: localhost:5432
   - Usuario: postgres
   - Contraseña: password
   - Base de datos: gestor_proyectos
-- **OpenLDAP** (Federated Identity): ldap://localhost:389 🔐 **NUEVO**
+- **OpenLDAP** (Federated Identity): ldap://localhost:389
   - Base DN: dc=example,dc=org
   - Admin DN: cn=admin,dc=example,dc=org
   - Admin Password: admin_password
@@ -203,13 +196,6 @@ UT3-TFU-APi/
 - **Adminer** (Administrador BD): http://localhost:8080
 
 ## Endpoints Principales
-
-### GestorUsuarios (`/api/v1/usuarios`)
-- `POST /` - Crear usuario
-- `GET /` - Listar usuarios (con paginación)
-- `GET /{id}` - Obtener usuario específico
-- `PUT /{id}` - Actualizar usuario
-- `DELETE /{id}` - Eliminar usuario
 
 ### GestorProyectos (`/api/v1/proyectos`)
 - `POST /` - Crear proyecto
@@ -274,9 +260,6 @@ curl http://localhost:8000/tareas/jobs/f47ac10b-...
 ```bash
 python scripts/demo_load_leveling.py
 ```
-
-📚 **Documentación completa**: Ver [RESUMEN_QUEUE_LOAD_LEVELING.md](./RESUMEN_QUEUE_LOAD_LEVELING.md)
-
 ## 🔐 Gatekeeper + Federated Identity - Uso Rápido
 
 Los patrones **Gatekeeper** y **Federated Identity** están implementados para proporcionar seguridad robusta:
@@ -341,9 +324,9 @@ curl -X GET http://localhost:8000/api/v1/auth/me \
 - Login DN: `cn=admin,dc=example,dc=org`
 - Password: `admin_password`
 
-## 🎨 Demo Interactiva Web
+## Demo Interactiva Web
 
-**Interfaz visual profesional integrada en FastAPI** ⭐ **RECOMENDADA PARA PRESENTACIONES**
+**Interfaz visual profesional integrada en FastAPI**
 
 ```
 URL: http://localhost:8000/demo
@@ -395,14 +378,6 @@ Importar la colección desde: http://localhost:8000/docs → "Download OpenAPI s
 - **Contenedores**: Docker + docker-compose
 - **Servidor**: Uvicorn
 - **Administrador BD**: Adminer
-
-## Métricas de Escalabilidad
-
-- **Stateless**: ✅ Sin estado en memoria
-- **Paginación**: ✅ Límite configurable de resultados
-- **Conexiones BD**: ✅ Pool de conexiones optimizado
-- **Health Checks**: ✅ Monitoreo de contenedores
-- **Horizontal Scaling**: ✅ Múltiples instancias compatibles
 
 ## Comandos Docker Útiles
 
@@ -475,16 +450,6 @@ database_url = settings.DATABASE_URL
 redis_host = settings.REDIS_HOST
 jwt_secret = settings.JWT_SECRET_KEY
 ```
-
-### Configuración por Entorno
-
-El mismo código se puede desplegar en múltiples entornos con diferentes configuraciones:
-
-- **Desarrollo Local**: `.env` con localhost
-- **Docker**: `.env` con nombres de servicios Docker
-- **Staging**: `.env` con servidores de staging
-- **Producción**: `.env` con configuración productiva
-
 ### Variables Principales
 
 | Variable | Descripción | Valor por Defecto |
@@ -544,11 +509,4 @@ El mismo código se puede desplegar en múltiples entornos con diferentes config
 - [x] Configuración flexible vía variables de entorno
 
 ---
-
-## Soporte
-
-Para preguntas sobre la implementación o conceptos, revisar:
-1. Documentación interactiva: http://localhost:8000/docs
-2. Scripts de demostración en `/scripts/`
-3. Logs de la aplicación: `docker-compose logs api`
 
