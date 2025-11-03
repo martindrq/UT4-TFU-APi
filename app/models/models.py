@@ -6,7 +6,7 @@ Implementa relaciones y restricciones para garantizar integridad ACID.
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.database import Base
+from app.config.database import Base
 
 # Tabla de asociación para relación muchos-a-muchos entre proyectos y usuarios
 proyecto_usuario_association = Table(
@@ -86,3 +86,4 @@ class Tarea(Base):
 
     def __repr__(self):
         return f"<Tarea(id={self.id}, titulo='{self.titulo}', estado='{self.estado}', proyecto_id={self.proyecto_id})>"
+

@@ -2,6 +2,7 @@
 Router para gestión de proyectos - Componente GestorProyectos
 Implementa endpoints CRUD y asignación de usuarios con validaciones cruzadas.
 Servicio sin estado (stateless) - cada request es independiente.
+Incluye patrón Cache-Aside para optimización de consultas frecuentes.
 """
 
 from typing import List
@@ -9,12 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.database import get_db
+from app.config import get_db
 from app.models import Proyecto, Usuario
 from app.schemas import (
     ProyectoCreate, ProyectoUpdate, ProyectoResponse, 
     AsignarUsuarioProyecto, ErrorResponse, SuccessResponse
 )
+from app.services import cache_service as cache
 
 router = APIRouter(
     prefix="/proyectos",
@@ -50,6 +52,9 @@ async def crear_proyecto(
         db.commit()  # Commit explícito para ACID
         db.refresh(db_proyecto)
         
+        # Invalidar caché de listas de proyectos
+        cache.invalidate_proyecto_cache()
+        
         return db_proyecto
         
     except IntegrityError:
@@ -70,10 +75,21 @@ async def listar_proyectos(
     Obtener lista de todos los proyectos con sus usuarios asignados.
     Soporta filtrado por estado y paginación para escalabilidad.
     
+    **Patrón Cache-Aside aplicado:**
+    1. Intenta obtener datos desde Redis
+    2. Si no existe en caché (cache miss), consulta PostgreSQL
+    3. Guarda resultado en caché para futuras consultas
+    
     - **skip**: Número de registros a omitir (default: 0)
     - **limit**: Número máximo de registros a devolver (default: 100)
     - **estado**: Filtrar por estado (activo, pausado, completado)
     """
+    #Intentar obtener desde caché (Cache-Aside)
+    cached_proyectos = cache.get_proyectos_list_from_cache(skip, limit, estado)
+    if cached_proyectos is not None:
+        return cached_proyectos
+    
+    #Si no está en caché, consultar base de datos
     query = db.query(Proyecto)
     
     # Filtrar por estado si se proporciona
@@ -81,6 +97,29 @@ async def listar_proyectos(
         query = query.filter(Proyecto.estado == estado)
     
     proyectos = query.offset(skip).limit(limit).all()
+    
+    #Convertir a dict para serialización y guardar en caché
+    proyectos_dict = [
+        {
+            "id": p.id,
+            "nombre": p.nombre,
+            "descripcion": p.descripcion,
+            "estado": p.estado,
+            "fecha_inicio": p.fecha_inicio.isoformat() if p.fecha_inicio else None,
+            "fecha_fin": p.fecha_fin.isoformat() if p.fecha_fin else None,
+            "usuarios": [
+                {
+                    "id": u.id,
+                    "nombre": u.nombre,
+                    "email": u.email,
+                    "rol": u.rol
+                } for u in p.usuarios
+            ]
+        } for p in proyectos
+    ]
+    
+    cache.set_proyectos_list_in_cache(proyectos_dict, skip, limit, estado)
+    
     return proyectos
 
 @router.get("/{proyecto_id}", response_model=ProyectoResponse)
@@ -92,8 +131,19 @@ async def obtener_proyecto(
     Obtener información detallada de un proyecto específico.
     Incluye usuarios asignados al proyecto.
     
+    **Patrón Cache-Aside aplicado:**
+    1. Intenta obtener datos desde Redis
+    2. Si no existe en caché (cache miss), consulta PostgreSQL
+    3. Guarda resultado en caché para futuras consultas
+    
     - **proyecto_id**: ID único del proyecto
     """
+    #Intentar obtener desde caché (Cache-Aside)
+    cached_proyecto = cache.get_proyecto_from_cache(proyecto_id)
+    if cached_proyecto is not None:
+        return cached_proyecto
+    
+    #Si no está en caché, consultar base de datos
     proyecto = db.query(Proyecto).filter(Proyecto.id == proyecto_id).first()
     
     if not proyecto:
@@ -101,6 +151,26 @@ async def obtener_proyecto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Proyecto con ID {proyecto_id} no encontrado"
         )
+    
+    #Convertir a dict para serialización y guardar en caché
+    proyecto_dict = {
+        "id": proyecto.id,
+        "nombre": proyecto.nombre,
+        "descripcion": proyecto.descripcion,
+        "estado": proyecto.estado,
+        "fecha_inicio": proyecto.fecha_inicio.isoformat() if proyecto.fecha_inicio else None,
+        "fecha_fin": proyecto.fecha_fin.isoformat() if proyecto.fecha_fin else None,
+        "usuarios": [
+            {
+                "id": u.id,
+                "nombre": u.nombre,
+                "email": u.email,
+                "rol": u.rol
+            } for u in proyecto.usuarios
+        ]
+    }
+    
+    cache.set_proyecto_in_cache(proyecto_id, proyecto_dict)
     
     return proyecto
 
@@ -152,6 +222,9 @@ async def actualizar_proyecto(
         db.commit()  # Commit explícito para ACID
         db.refresh(db_proyecto)
         
+        # Invalidar caché del proyecto actualizado
+        cache.invalidate_proyecto_cache(proyecto_id)
+        
         return db_proyecto
         
     except IntegrityError:
@@ -183,6 +256,9 @@ async def eliminar_proyecto(
     try:
         db.delete(db_proyecto)
         db.commit()  # Commit explícito para ACID
+        
+        # Invalidar caché del proyecto eliminado
+        cache.invalidate_proyecto_cache(proyecto_id)
         
     except IntegrityError:
         db.rollback()
@@ -231,6 +307,9 @@ async def asignar_usuario_proyecto(
         # Asignar usuario al proyecto
         proyecto.usuarios.append(usuario)
         db.commit()  # Commit explícito para ACID
+        
+        # Invalidar caché del proyecto modificado
+        cache.invalidate_proyecto_cache(proyecto_id)
         
         return SuccessResponse(
             message=f"Usuario {usuario.nombre} asignado exitosamente al proyecto {proyecto.nombre}",
@@ -288,6 +367,9 @@ async def desasignar_usuario_proyecto(
         # Desasignar usuario del proyecto
         proyecto.usuarios.remove(usuario)
         db.commit()  # Commit explícito para ACID
+        
+        # Invalidar caché del proyecto modificado
+        cache.invalidate_proyecto_cache(proyecto_id)
         
         return SuccessResponse(
             message=f"Usuario {usuario.nombre} desasignado exitosamente del proyecto {proyecto.nombre}",

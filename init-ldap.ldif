@@ -1,0 +1,93 @@
+# Script de inicialización LDAP con usuarios de prueba
+# Este archivo configura usuarios de ejemplo para testing del patrón Federated Identity
+
+# Crear OU para usuarios
+dn: ou=users,dc=example,dc=org
+objectClass: organizationalUnit
+ou: users
+
+# Usuario Admin
+dn: uid=admin,ou=users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: admin
+cn: Administrator
+sn: Admin
+givenName: Admin
+mail: admin@example.org
+employeeType: admin
+uidNumber: 10001
+gidNumber: 10001
+homeDirectory: /home/admin
+loginShell: /bin/bash
+userPassword: admin_password
+
+# Usuario Manager
+dn: uid=manager,ou=users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: manager
+cn: Project Manager
+sn: Manager
+givenName: Project
+mail: manager@example.org
+employeeType: manager
+uidNumber: 10002
+gidNumber: 10002
+homeDirectory: /home/manager
+loginShell: /bin/bash
+userPassword: manager_password
+
+# Usuario Developer
+dn: uid=developer,ou=users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: developer
+cn: Developer User
+sn: User
+givenName: Developer
+mail: developer@example.org
+employeeType: developer
+uidNumber: 10003
+gidNumber: 10003
+homeDirectory: /home/developer
+loginShell: /bin/bash
+userPassword: developer_password
+
+# Usuario adicional - Manager 2
+dn: uid=jdoe,ou=users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: jdoe
+cn: John Doe
+sn: Doe
+givenName: John
+mail: jdoe@example.org
+employeeType: manager
+uidNumber: 10004
+gidNumber: 10004
+homeDirectory: /home/jdoe
+loginShell: /bin/bash
+userPassword: jdoe123
+
+# Usuario adicional - Developer 2
+dn: uid=jsmith,ou=users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: jsmith
+cn: Jane Smith
+sn: Smith
+givenName: Jane
+mail: jsmith@example.org
+employeeType: developer
+uidNumber: 10005
+gidNumber: 10005
+homeDirectory: /home/jsmith
+loginShell: /bin/bash
+userPassword: jsmith123
+

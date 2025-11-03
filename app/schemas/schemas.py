@@ -116,3 +116,51 @@ class SuccessResponse(BaseModel):
     """Schema para respuestas exitosas"""
     message: str
     data: Optional[dict] = None
+
+# ===== SCHEMAS PARA QUEUE-BASED LOAD LEVELING =====
+
+class JobResponse(BaseModel):
+    """Schema de respuesta para job encolado"""
+    job_id: str = Field(..., description="ID único del job")
+    message: str = Field(..., description="Mensaje descriptivo")
+    status: str = Field(..., description="Estado del job (pending, processing, completed, failed)")
+    queue_position: Optional[int] = Field(None, description="Posición aproximada en la cola")
+
+class JobStatusResponse(BaseModel):
+    """Schema de respuesta para estado de job"""
+    job_id: str
+    status: str = Field(..., description="Estado del job")
+    message: str
+    error: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+class JobResultResponse(BaseModel):
+    """Schema de respuesta para resultado de job completado"""
+    job_id: str
+    status: str
+    result: Optional[TareaResponse] = None
+    error: Optional[str] = None
+
+# ===== SCHEMAS PARA AUTENTICACIÓN (Gatekeeper + Federated Identity) =====
+
+class LoginRequest(BaseModel):
+    """Schema para solicitud de login con LDAP"""
+    username: str = Field(..., min_length=3, max_length=50, description="Nombre de usuario LDAP")
+    password: str = Field(..., min_length=1, description="Contraseña del usuario")
+
+class TokenResponse(BaseModel):
+    """Schema de respuesta después de login exitoso"""
+    access_token: str = Field(..., description="Token JWT de acceso")
+    token_type: str = Field(default="bearer", description="Tipo de token")
+    expires_in: int = Field(..., description="Tiempo de expiración en segundos")
+    user: dict = Field(..., description="Información del usuario autenticado")
+
+class UserInfo(BaseModel):
+    """Schema para información del usuario actual"""
+    username: str
+    email: str
+    nombre: str
+    rol: str
+    ldap_dn: Optional[str] = None
+

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.database import get_db
+from app.config import get_db
 from app.models import Usuario
 from app.schemas import UsuarioCreate, UsuarioUpdate, UsuarioResponse, ErrorResponse
 
