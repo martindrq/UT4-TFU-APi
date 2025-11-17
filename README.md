@@ -201,7 +201,7 @@ UT3-TFU-APi/
 
 **Opción 1: Script de inicio automático**
 ```bash
-./start-services.sh
+docker-compose up
 ```
 
 **Opción 2: Docker Compose manual**
@@ -269,7 +269,7 @@ Cliente → Gateway:8080 → Backend:8000 (usuarios, proyectos, tareas) → Post
   - Documentación: http://localhost:8000/docs
   - ReDoc: http://localhost:8000/redoc
   - Health Check: http://localhost:8000/health
-- **Auth Service**: http://localhost:8002 (red interna) 🆕 **NUEVO MICROSERVICIO**
+- **Auth Service**: http://localhost:8002 (red interna)
   - Health Check: http://localhost:8002/health
   - Documentación: http://localhost:8002/docs
   - Login LDAP: http://localhost:8002/auth/login
@@ -278,7 +278,7 @@ Cliente → Gateway:8080 → Backend:8000 (usuarios, proyectos, tareas) → Post
   - Usuario: postgres
   - Contraseña: password
   - Base de datos: gestor_proyectos
-- **OpenLDAP** (Federated Identity): ldap://localhost:389 🔐 **NUEVO**
+- **OpenLDAP** (Federated Identity): ldap://localhost:389
   - Base DN: dc=example,dc=org
   - Admin DN: cn=admin,dc=example,dc=org
   - Admin Password: admin_password
