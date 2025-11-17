@@ -2,7 +2,7 @@
 
 ## 🏗️ Arquitectura orientada a servicios
 
-Este proyecto implementa una **arquitectura de microservicios desacoplados** con:
+Este proyecto implementa una **arquitectura orientada a servicios desacoplados** con:
 
 - 🛡️ **Gateway Service** (Puerto 8080): Punto de entrada único, seguridad y validación
 - 📦 **Backend Service** (Puerto 8000): Lógica de negocio principal (usuarios, proyectos, tareas)
@@ -71,7 +71,7 @@ API REST completa para un mini gestor de proyectos que implementa tres component
 - **Reintentos Automáticos**: Sistema robusto de reintentos con límites
 - **Seguimiento de Estado**: job_id para monitorear procesamiento
 
-### 7. Arquitectura de Microservicios
+### 7. Arquitectura de Servicios
 - **Gateway Service**: API Gateway independiente como punto de entrada único con enrutamiento inteligente
 - **Backend Service**: Lógica de negocio principal (usuarios, proyectos, tareas)
 - **Auth Service**: Servicio independiente dedicado para autenticación con LDAP y generación de tokens JWT
@@ -317,7 +317,7 @@ Cliente → Gateway:8080 → Backend:8000 (usuarios, proyectos, tareas) → Post
 - `GET /queue/stats` - 🆕 Estadísticas de la cola
 
 ### 🔐 Autenticación (`/api/v1/auth`) 🆕 **SERVICIO INDEPENDIENTE**
-**Nota**: Este componente ahora corre como microservicio independiente (puerto 8002) dedicado a autenticación con LDAP y generación de tokens JWT.
+**Nota**: Este componente ahora corre como servicio independiente (puerto 8002) dedicado a autenticación con LDAP y generación de tokens JWT.
 
 - `POST /login` - 🔐 Login con LDAP (Federated Identity)
 - `GET /me` - 🔐 Información del usuario del token
