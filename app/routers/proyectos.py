@@ -5,10 +5,13 @@ Servicio sin estado (stateless) - cada request es independiente.
 Incluye patrón Cache-Aside para optimización de consultas frecuentes.
 """
 
-from typing import List
+from typing import List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from datetime import datetime
+from lxml import etree
 
 from app.config import get_db
 from app.config.permissions import PermissionChecker
@@ -26,26 +29,33 @@ router = APIRouter(
     responses={404: {"model": ErrorResponse}},
 )
 
-@router.post("/", response_model=ProyectoResponse, status_code=status.HTTP_201_CREATED)
-async def crear_proyecto(
-    proyecto: ProyectoCreate,
+# ============================================================================
+# FUNCIÓN AUXILIAR: Lógica común para crear proyectos
+# ============================================================================
+def _crear_proyecto_logic(
+    proyecto_data: Dict,
     request: Request,
-    db: Session = Depends(get_db)
-):
+    db: Session
+) -> Proyecto:
     """
-    Crear un nuevo proyecto en el sistema.
+    Lógica común para crear un proyecto.
+    Reutilizada por endpoints REST y SOAP.
     
-    Requiere permisos: admin o manager (proyectos:*)
-    
-    - **nombre**: Nombre del proyecto (3-200 caracteres)
-    - **descripcion**: Descripción opcional del proyecto
-    - **estado**: Estado del proyecto (activo, pausado, completado)
-    - **fecha_fin**: Fecha de finalización estimada (opcional)
+    Args:
+        proyecto_data: Diccionario con datos del proyecto
+        request: Request de FastAPI (para obtener usuario del gateway)
+        db: Sesión de base de datos
+        
+    Returns:
+        Proyecto creado
+        
+    Raises:
+        HTTPException: Si hay errores de validación, permisos o integridad
     """
     import logging
     logger = logging.getLogger(__name__)
     
-    logger.info(f"📝 Crear proyecto: nombre={proyecto.nombre}, estado={proyecto.estado}")
+    logger.info(f"📝 Crear proyecto: nombre={proyecto_data.get('nombre')}, estado={proyecto_data.get('estado')}")
     
     # Validar permisos del usuario
     # El usuario viene del gateway a través del header X-User-Info
@@ -91,15 +101,15 @@ async def crear_proyecto(
     
     try:
         # Verificar si ya existe un proyecto con el mismo nombre
-        proyecto_existente = db.query(Proyecto).filter(Proyecto.nombre == proyecto.nombre).first()
+        proyecto_existente = db.query(Proyecto).filter(Proyecto.nombre == proyecto_data.get("nombre")).first()
         if proyecto_existente:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Ya existe un proyecto con el nombre '{proyecto.nombre}'"
+                detail=f"Ya existe un proyecto con el nombre '{proyecto_data.get('nombre')}'"
             )
         
         # Crear nuevo proyecto
-        db_proyecto = Proyecto(**proyecto.model_dump())
+        db_proyecto = Proyecto(**proyecto_data)
         db.add(db_proyecto)
         db.commit()  # Commit explícito para ACID
         db.refresh(db_proyecto)
@@ -116,7 +126,307 @@ async def crear_proyecto(
             detail="Error de integridad en la base de datos"
         )
 
-@router.get("/", response_model=List[ProyectoResponse])
+@router.post("/", response_model=ProyectoResponse, status_code=status.HTTP_201_CREATED)
+async def crear_proyecto(
+    proyecto: ProyectoCreate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Crear un nuevo proyecto en el sistema (REST/JSON).
+    
+    Requiere permisos: admin o manager (proyectos:*)
+    
+    - **nombre**: Nombre del proyecto (3-200 caracteres)
+    - **descripcion**: Descripción opcional del proyecto
+    - **estado**: Estado del proyecto (activo, pausado, completado)
+    - **fecha_fin**: Fecha de finalización estimada (opcional)
+    """
+    # Usar la función auxiliar común
+    proyecto_data = proyecto.model_dump()
+    return _crear_proyecto_logic(proyecto_data, request, db)
+
+# ============================================================================
+# ENDPOINT SOAP: Crear proyecto con SOAP/XML
+# ============================================================================
+@router.post("/soap/", response_class=Response)
+async def crear_proyecto_soap(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Crear un nuevo proyecto en el sistema usando SOAP/XML.
+    
+    Requiere permisos: admin o manager (proyectos:*)
+    
+    **Formato SOAP Request:**
+    ```xml
+    <?xml version="1.0" encoding="UTF-8"?>
+    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+        <soap:Body>
+            <CrearProyecto xmlns="http://minigestor.com/proyectos">
+                <nombre>Nombre del Proyecto</nombre>
+                <descripcion>Descripción opcional</descripcion>
+                <estado>activo</estado>
+                <fecha_fin>2024-12-31T23:59:59</fecha_fin>
+            </CrearProyecto>
+        </soap:Body>
+    </soap:Envelope>
+    ```
+    
+    **Formato SOAP Response:**
+    ```xml
+    <?xml version="1.0" encoding="UTF-8"?>
+    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+        <soap:Body>
+            <CrearProyectoResponse xmlns="http://minigestor.com/proyectos">
+                <id>1</id>
+                <nombre>Nombre del Proyecto</nombre>
+                <descripcion>Descripción opcional</descripcion>
+                <estado>activo</estado>
+                <fecha_inicio>2024-01-01T00:00:00</fecha_inicio>
+                <fecha_fin>2024-12-31T23:59:59</fecha_fin>
+                <fecha_creacion>2024-01-01T00:00:00</fecha_creacion>
+            </CrearProyectoResponse>
+        </soap:Body>
+    </soap:Envelope>
+    ```
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Namespaces SOAP
+    SOAP_NS = "http://schemas.xmlsoap.org/soap/envelope/"
+    PROYECTOS_NS = "http://minigestor.com/proyectos"
+    
+    try:
+        # Leer el body del request como XML
+        body = await request.body()
+        logger.info(f"📥 SOAP Request recibido: {len(body)} bytes")
+        
+        # Parsear el XML SOAP
+        try:
+            root = etree.fromstring(body)
+        except etree.XMLSyntaxError as e:
+            logger.error(f"❌ Error parseando XML SOAP: {e}")
+            return _crear_respuesta_soap_error(
+                "Error de sintaxis XML",
+                "El XML proporcionado no es válido",
+                SOAP_NS,
+                PROYECTOS_NS
+            )
+        
+        # Registrar namespaces
+        nsmap = {
+            "soap": SOAP_NS,
+            "proj": PROYECTOS_NS
+        }
+        
+        # Extraer el Body del SOAP
+        soap_body = root.find(f".//{{{SOAP_NS}}}Body")
+        if soap_body is None:
+            return _crear_respuesta_soap_error(
+                "Estructura SOAP inválida",
+                "No se encontró el elemento soap:Body",
+                SOAP_NS,
+                PROYECTOS_NS
+            )
+        
+        # Extraer el elemento CrearProyecto
+        crear_proyecto = soap_body.find(f".//{{{PROYECTOS_NS}}}CrearProyecto")
+        if crear_proyecto is None:
+            # Intentar sin namespace
+            crear_proyecto = soap_body.find(".//CrearProyecto")
+            if crear_proyecto is None:
+                return _crear_respuesta_soap_error(
+                    "Operación no encontrada",
+                    "No se encontró el elemento CrearProyecto",
+                    SOAP_NS,
+                    PROYECTOS_NS
+                )
+        
+        # Extraer datos del proyecto desde el XML
+        proyecto_data = {}
+        
+        # Nombre (requerido)
+        nombre_elem = crear_proyecto.find(f".//{{{PROYECTOS_NS}}}nombre")
+        if nombre_elem is None:
+            nombre_elem = crear_proyecto.find(".//nombre")
+        if nombre_elem is None or nombre_elem.text is None:
+            return _crear_respuesta_soap_error(
+                "Campo requerido faltante",
+                "El campo 'nombre' es requerido",
+                SOAP_NS,
+                PROYECTOS_NS
+            )
+        proyecto_data["nombre"] = nombre_elem.text.strip()
+        
+        # Descripción (opcional)
+        descripcion_elem = crear_proyecto.find(f".//{{{PROYECTOS_NS}}}descripcion")
+        if descripcion_elem is None:
+            descripcion_elem = crear_proyecto.find(".//descripcion")
+        if descripcion_elem is not None and descripcion_elem.text:
+            proyecto_data["descripcion"] = descripcion_elem.text.strip()
+        else:
+            proyecto_data["descripcion"] = None
+        
+        # Estado (opcional, default: activo)
+        estado_elem = crear_proyecto.find(f".//{{{PROYECTOS_NS}}}estado")
+        if estado_elem is None:
+            estado_elem = crear_proyecto.find(".//estado")
+        if estado_elem is not None and estado_elem.text:
+            proyecto_data["estado"] = estado_elem.text.strip()
+        else:
+            proyecto_data["estado"] = "activo"
+        
+        # Fecha fin (opcional)
+        fecha_fin_elem = crear_proyecto.find(f".//{{{PROYECTOS_NS}}}fecha_fin")
+        if fecha_fin_elem is None:
+            fecha_fin_elem = crear_proyecto.find(".//fecha_fin")
+        if fecha_fin_elem is not None and fecha_fin_elem.text:
+            try:
+                # Intentar parsear la fecha en formato ISO
+                proyecto_data["fecha_fin"] = datetime.fromisoformat(fecha_fin_elem.text.strip().replace("Z", "+00:00"))
+            except ValueError:
+                return _crear_respuesta_soap_error(
+                    "Formato de fecha inválido",
+                    f"La fecha '{fecha_fin_elem.text}' no está en formato ISO válido",
+                    SOAP_NS,
+                    PROYECTOS_NS
+                )
+        else:
+            proyecto_data["fecha_fin"] = None
+        
+        logger.info(f"📋 Datos extraídos del SOAP: {proyecto_data}")
+        
+        # Validar datos básicos
+        if len(proyecto_data["nombre"]) < 3 or len(proyecto_data["nombre"]) > 200:
+            return _crear_respuesta_soap_error(
+                "Validación fallida",
+                "El nombre del proyecto debe tener entre 3 y 200 caracteres",
+                SOAP_NS,
+                PROYECTOS_NS
+            )
+        
+        if proyecto_data["estado"] not in ["activo", "pausado", "completado"]:
+            return _crear_respuesta_soap_error(
+                "Estado inválido",
+                f"El estado '{proyecto_data['estado']}' no es válido. Debe ser: activo, pausado o completado",
+                SOAP_NS,
+                PROYECTOS_NS
+            )
+        
+        # Crear el proyecto usando la lógica común
+        try:
+            db_proyecto = _crear_proyecto_logic(proyecto_data, request, db)
+            
+            # Generar respuesta SOAP exitosa
+            return _crear_respuesta_soap_exitosa(db_proyecto, SOAP_NS, PROYECTOS_NS)
+            
+        except HTTPException as e:
+            # Convertir HTTPException a respuesta SOAP de error
+            return _crear_respuesta_soap_error(
+                "Error al crear proyecto",
+                e.detail,
+                SOAP_NS,
+                PROYECTOS_NS,
+                status_code=e.status_code
+            )
+        
+    except Exception as e:
+        logger.error(f"❌ Error inesperado en SOAP: {e}", exc_info=True)
+        return _crear_respuesta_soap_error(
+            "Error interno del servidor",
+            f"Error inesperado: {str(e)}",
+            SOAP_NS,
+            PROYECTOS_NS,
+            status_code=500
+        )
+
+
+def _crear_respuesta_soap_exitosa(proyecto: Proyecto, soap_ns: str, proyectos_ns: str) -> Response:
+    """
+    Crea una respuesta SOAP exitosa con los datos del proyecto creado.
+    """
+    # Crear el XML de respuesta SOAP con namespaces correctos
+    nsmap = {
+        "soap": soap_ns,
+        "proj": proyectos_ns
+    }
+    envelope = etree.Element(f"{{{soap_ns}}}Envelope", nsmap=nsmap)
+    body = etree.SubElement(envelope, f"{{{soap_ns}}}Body")
+    response = etree.SubElement(body, f"{{{proyectos_ns}}}CrearProyectoResponse")
+    
+    # Agregar campos del proyecto
+    etree.SubElement(response, f"{{{proyectos_ns}}}id").text = str(proyecto.id)
+    etree.SubElement(response, f"{{{proyectos_ns}}}nombre").text = proyecto.nombre
+    if proyecto.descripcion:
+        etree.SubElement(response, f"{{{proyectos_ns}}}descripcion").text = proyecto.descripcion
+    etree.SubElement(response, f"{{{proyectos_ns}}}estado").text = proyecto.estado
+    
+    if proyecto.fecha_inicio:
+        etree.SubElement(response, f"{{{proyectos_ns}}}fecha_inicio").text = proyecto.fecha_inicio.isoformat()
+    if proyecto.fecha_fin:
+        etree.SubElement(response, f"{{{proyectos_ns}}}fecha_fin").text = proyecto.fecha_fin.isoformat()
+    if proyecto.fecha_creacion:
+        etree.SubElement(response, f"{{{proyectos_ns}}}fecha_creacion").text = proyecto.fecha_creacion.isoformat()
+    if proyecto.fecha_actualizacion:
+        etree.SubElement(response, f"{{{proyectos_ns}}}fecha_actualizacion").text = proyecto.fecha_actualizacion.isoformat()
+    
+    # Convertir a string XML
+    try:
+        xml_string = etree.tostring(envelope, encoding="UTF-8", xml_declaration=True, pretty_print=True)
+    except TypeError:
+        # Si pretty_print no está disponible, usar sin formato
+        xml_string = etree.tostring(envelope, encoding="UTF-8", xml_declaration=True)
+    
+    return Response(
+        content=xml_string,
+        media_type="application/xml; charset=utf-8",
+        status_code=200
+    )
+
+
+def _crear_respuesta_soap_error(
+    fault_code: str,
+    fault_string: str,
+    soap_ns: str,
+    proyectos_ns: str,
+    status_code: int = 500
+) -> Response:
+    """
+    Crea una respuesta SOAP de error (SOAP Fault).
+    """
+    # Crear el XML de respuesta SOAP Fault con namespaces correctos
+    nsmap = {
+        "soap": soap_ns,
+        "proj": proyectos_ns
+    }
+    envelope = etree.Element(f"{{{soap_ns}}}Envelope", nsmap=nsmap)
+    body = etree.SubElement(envelope, f"{{{soap_ns}}}Body")
+    fault = etree.SubElement(body, f"{{{soap_ns}}}Fault")
+    
+    etree.SubElement(fault, f"{{{soap_ns}}}faultcode").text = "SOAP-ENV:Server"
+    etree.SubElement(fault, f"{{{soap_ns}}}faultstring").text = fault_string
+    detail = etree.SubElement(fault, f"{{{soap_ns}}}detail")
+    error_detail = etree.SubElement(detail, f"{{{proyectos_ns}}}ErrorDetail")
+    etree.SubElement(error_detail, f"{{{proyectos_ns}}}code").text = fault_code
+    etree.SubElement(error_detail, f"{{{proyectos_ns}}}message").text = fault_string
+    
+    # Convertir a string XML
+    try:
+        xml_string = etree.tostring(envelope, encoding="UTF-8", xml_declaration=True, pretty_print=True)
+    except TypeError:
+        # Si pretty_print no está disponible, usar sin formato
+        xml_string = etree.tostring(envelope, encoding="UTF-8", xml_declaration=True)
+    
+    return Response(
+        content=xml_string,
+        media_type="application/xml; charset=utf-8",
+        status_code=status_code
+    )
+
+@router.get("", response_model=List[ProyectoResponse])
 async def listar_proyectos(
     skip: int = 0,
     limit: int = 100,

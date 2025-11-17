@@ -168,7 +168,8 @@ app = FastAPI(
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False  # Deshabilitar redirects automáticos de barras finales
 )
 
 # Configurar CORS para permitir requests desde diferentes orígenes
@@ -187,25 +188,6 @@ app.add_middleware(
 from starlette.middleware.base import BaseHTTPMiddleware
 
 app.add_middleware(BaseHTTPMiddleware, dispatch=gateway_trust_middleware)
-
-# Middleware para prevenir redirects de barras finales en métodos que tienen body
-# Esto evita que POST/PUT/PATCH/DELETE pierdan el body en redirects 307
-# FastAPI redirige automáticamente rutas sin barra final a rutas con barra final,
-# pero en métodos con body esto causa que se pierda el contenido
-class NoRedirectSlashMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        # Si la ruta NO termina con / y el método tiene body, agregar la barra final
-        # Esto previene el redirect 307 que hace perder el body
-        if not request.url.path.endswith("/") and request.url.path != "/":
-            # Métodos que pueden tener body
-            if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-                # Agregar barra final directamente en el scope para evitar redirect
-                request.scope["path"] = request.url.path + "/"
-        
-        response = await call_next(request)
-        return response
-
-app.add_middleware(NoRedirectSlashMiddleware)
 
 # Router de autenticación movido a servicio independiente (auth-service en puerto 8002)
 # El Gateway enruta las solicitudes /api/v1/auth al servicio de autenticación

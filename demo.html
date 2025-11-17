@@ -644,60 +644,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Patrones Implementados -->
-                    <div style="margin-bottom: 30px">
-                        <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: var(--gray-700)">
-                            🛡️ Patrones de Seguridad
-                        </h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px">
-                            <div
-                                style="background: var(--gray-50); padding: 20px; border-left: 4px solid var(--primary)"
-                            >
-                                <h4 style="color: var(--primary); margin-bottom: 10px; font-size: 1rem">
-                                    Gatekeeper (API Gateway)
-                                </h4>
-                                <ul
-                                    style="
-                                        margin-left: 20px;
-                                        line-height: 1.8;
-                                        color: var(--gray-700);
-                                        font-size: 0.9rem;
-                                    "
-                                >
-                                    <li>Control de acceso centralizado</li>
-                                    <li>Validación de tokens JWT</li>
-                                    <li>Rate Limiting (100 req/min)</li>
-                                    <li>Protección contra XSS, SQL Injection</li>
-                                    <li>Headers de seguridad automáticos</li>
-                                    <li>Control de permisos por rol (RBAC)</li>
-                                </ul>
-                            </div>
-                            <div
-                                style="background: var(--gray-50); padding: 20px; border-left: 4px solid var(--success)"
-                            >
-                                <h4 style="color: var(--success); margin-bottom: 10px; font-size: 1rem">
-                                    Federated Identity (LDAP)
-                                </h4>
-                                <ul
-                                    style="
-                                        margin-left: 20px;
-                                        line-height: 1.8;
-                                        color: var(--gray-700);
-                                        font-size: 0.9rem;
-                                    "
-                                >
-                                    <li>Autenticación delegada a LDAP</li>
-                                    <li>Single Sign-On (SSO)</li>
-                                    <li>Sin gestión local de contraseñas</li>
-                                    <li>Mapeo automático de roles</li>
-                                    <li>Tokens JWT internos (30 min)</li>
-                                    <li>Integración con Active Directory</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Pruebas de Seguridad -->
                     <div style="margin-bottom: 20px">
                         <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: var(--gray-700)">
@@ -771,9 +717,15 @@
                                     <option value="completado">Completado</option>
                                 </select>
                             </div>
-                            <button class="btn btn-success" style="width: 100%" onclick="createProject()">
-                                Crear Proyecto
+                            <button class="btn btn-success" style="width: 100%; margin-bottom: 10px" onclick="createProject()">
+                                Crear Proyecto (REST/JSON)
                             </button>
+                            <button class="btn" style="width: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;" onclick="createProjectSOAP()">
+                                📡 Crear Proyecto (SOAP/XML)
+                            </button>
+                            <div style="margin-top: 15px; padding: 10px; background: var(--gray-50); border-radius: 6px; font-size: 0.85rem; color: var(--gray-600)">
+                                <strong>💡 SOAP:</strong> Envía la solicitud en formato XML SOAP al endpoint <code>/api/v1/proyectos/soap/</code>
+                            </div>
                         </div>
                         <div>
                             <h3 style="margin-bottom: 15px; font-size: 1rem; color: var(--gray-700)">
@@ -1420,6 +1372,120 @@
                 } catch (error) {
                     addLog(`Error: ${error.message}`, "error");
                 }
+            }
+
+            async function createProjectSOAP() {
+                const nombre = document.getElementById("projectName").value;
+                const descripcion = document.getElementById("projectDesc").value;
+                const estado = document.getElementById("projectStatus").value;
+
+                if (!nombre) {
+                    addLog("Por favor completa el nombre del proyecto", "warning");
+                    return;
+                }
+
+                if (!authToken) {
+                    addLog("⚠️ Debes iniciar sesión primero", "warning");
+                    return;
+                }
+
+                // Construir el XML SOAP
+                const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+    <soap:Body>
+        <CrearProyecto xmlns="http://minigestor.com/proyectos">
+            <nombre>${escapeXml(nombre)}</nombre>
+            ${descripcion ? `<descripcion>${escapeXml(descripcion)}</descripcion>` : ''}
+            <estado>${escapeXml(estado)}</estado>
+        </CrearProyecto>
+    </soap:Body>
+</soap:Envelope>`;
+
+                addLog(`📡 POST /api/v1/proyectos/soap/ - Creando vía SOAP: ${nombre}`, "info");
+                addLog(`📄 SOAP Request:\n${formatXml(soapEnvelope)}`, "info");
+
+                try {
+                    const response = await fetch(`${API_URL}/api/v1/proyectos/soap/`, {
+                        method: "POST",
+                        headers: { 
+                            "Content-Type": "application/xml; charset=utf-8",
+                            "Authorization": `Bearer ${authToken}`
+                        },
+                        body: soapEnvelope,
+                    });
+
+                    const xmlText = await response.text();
+                    
+                    if (response.ok) {
+                        // Parsear la respuesta XML
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                        
+                        // Extraer datos del proyecto desde la respuesta SOAP
+                        const responseElement = xmlDoc.getElementsByTagNameNS("http://minigestor.com/proyectos", "CrearProyectoResponse")[0] ||
+                                               xmlDoc.querySelector("CrearProyectoResponse");
+                        
+                        if (responseElement) {
+                            const id = getXmlText(responseElement, "id");
+                            const nombreResp = getXmlText(responseElement, "nombre");
+                            const estadoResp = getXmlText(responseElement, "estado");
+                            
+                            addLog(`✅ Proyecto creado vía SOAP: ${nombreResp} (ID: ${id})`, "success");
+                            addLog(`📄 SOAP Response:\n${formatXml(xmlText)}`, "success");
+                            
+                            // Limpiar formulario
+                            document.getElementById("projectName").value = "";
+                            document.getElementById("projectDesc").value = "";
+                            loadProjects();
+                            updateStats();
+                        } else {
+                            addLog(`✅ Respuesta SOAP recibida:\n${formatXml(xmlText)}`, "success");
+                        }
+                    } else {
+                        // Error SOAP Fault
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                        const faultString = xmlDoc.getElementsByTagNameNS("http://schemas.xmlsoap.org/soap/envelope/", "faultstring")[0] ||
+                                          xmlDoc.querySelector("faultstring");
+                        
+                        const errorMsg = faultString ? faultString.textContent : "Error desconocido";
+                        addLog(`❌ Error SOAP: ${errorMsg}`, "error");
+                        addLog(`📄 SOAP Fault Response:\n${formatXml(xmlText)}`, "error");
+                    }
+                } catch (error) {
+                    addLog(`❌ Error: ${error.message}`, "error");
+                }
+            }
+
+            // Funciones auxiliares para SOAP
+            function escapeXml(text) {
+                if (!text) return '';
+                return text
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&apos;');
+            }
+
+            function formatXml(xml) {
+                let formatted = '';
+                let indent = '';
+                const tab = '  ';
+                
+                xml.split(/>\s*</).forEach(function(node) {
+                    if (node.match(/^\/\w/)) indent = indent.substring(tab.length);
+                    formatted += indent + '<' + node + '>\r\n';
+                    if (node.match(/^<?\w[^>]*[^\/]$/) && !node.startsWith('input')) indent += tab;
+                });
+                
+                return formatted.substring(1, formatted.length - 3);
+            }
+
+            function getXmlText(parent, tagName) {
+                const element = parent.getElementsByTagNameNS("http://minigestor.com/proyectos", tagName)[0] ||
+                               parent.querySelector(tagName);
+                return element ? element.textContent : '';
             }
 
             async function loadProjects() {
