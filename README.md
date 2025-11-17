@@ -1,6 +1,6 @@
 # README - Mini Gestor de Proyectos API
 
-## 🏗️ Arquitectura de Microservicios
+## 🏗️ Arquitectura orientada a servicios
 
 Este proyecto implementa una **arquitectura de microservicios desacoplados** con:
 
