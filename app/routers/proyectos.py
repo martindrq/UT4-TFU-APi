@@ -11,12 +11,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.config import get_db
+from app.config.permissions import PermissionChecker
 from app.models import Proyecto, Usuario
 from app.schemas import (
     ProyectoCreate, ProyectoUpdate, ProyectoResponse, 
     AsignarUsuarioProyecto, ErrorResponse, SuccessResponse
 )
 from app.services import cache_service as cache
+from fastapi import Request
 
 router = APIRouter(
     prefix="/proyectos",
@@ -27,16 +29,66 @@ router = APIRouter(
 @router.post("/", response_model=ProyectoResponse, status_code=status.HTTP_201_CREATED)
 async def crear_proyecto(
     proyecto: ProyectoCreate,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     Crear un nuevo proyecto en el sistema.
+    
+    Requiere permisos: admin o manager (proyectos:*)
     
     - **nombre**: Nombre del proyecto (3-200 caracteres)
     - **descripcion**: Descripción opcional del proyecto
     - **estado**: Estado del proyecto (activo, pausado, completado)
     - **fecha_fin**: Fecha de finalización estimada (opcional)
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"📝 Crear proyecto: nombre={proyecto.nombre}, estado={proyecto.estado}")
+    
+    # Validar permisos del usuario
+    # El usuario viene del gateway a través del header X-User-Info
+    user_info_header = request.headers.get("X-User-Info")
+    logger.info(f"🔐 X-User-Info header: {user_info_header}")
+    
+    if user_info_header:
+        import json
+        try:
+            user_info = json.loads(user_info_header)
+            request.state.user = user_info
+            logger.info(f"✅ Usuario parseado: {user_info}")
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Error parseando X-User-Info: {e}")
+            pass
+    
+    if not hasattr(request.state, "user") or not request.state.user:
+        logger.error("❌ Usuario no encontrado en request.state")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario no autenticado. El token no fue validado correctamente por el Gateway."
+        )
+    
+    user_role = request.state.user.get("rol", "desarrollador")
+    username = request.state.user.get("username", "unknown")
+    logger.info(f"👤 Usuario: {username}, Rol: {user_role}")
+    
+    # Verificar permisos: solo admin y manager pueden crear proyectos
+    has_create_permission = (
+        PermissionChecker.has_permission(user_role, "proyectos:create") or
+        PermissionChecker.has_permission(user_role, "proyectos:*") or
+        PermissionChecker.has_permission(user_role, "*")
+    )
+    
+    logger.info(f"🔑 Permiso crear proyecto: {has_create_permission}")
+    
+    if not has_create_permission:
+        logger.warning(f"🚫 Permiso denegado para {username} (rol: {user_role})")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permiso denegado. El usuario '{username}' con rol '{user_role}' no tiene permisos para crear proyectos. Se requiere rol 'admin' o 'manager'."
+        )
+    
     try:
         # Verificar si ya existe un proyecto con el mismo nombre
         proyecto_existente = db.query(Proyecto).filter(Proyecto.nombre == proyecto.nombre).first()
@@ -395,3 +447,4 @@ async def desasignar_usuario_proyecto(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Error al desasignar usuario del proyecto"
         )
+

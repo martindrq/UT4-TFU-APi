@@ -16,10 +16,11 @@ RUN adduser --disabled-password --gecos '' --shell /bin/bash apiuser
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Instalar dependencias del sistema necesarias para psycopg2
+# Instalar dependencias del sistema necesarias para psycopg2 y healthcheck
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

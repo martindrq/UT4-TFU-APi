@@ -21,7 +21,7 @@ uidNumber: 10001
 gidNumber: 10001
 homeDirectory: /home/admin
 loginShell: /bin/bash
-userPassword: admin_password
+userPassword: {SSHA}QqbyQ7s1gCnm2jsMDz8jQE2fWdpZsUJh
 
 # Usuario Manager
 dn: uid=manager,ou=users,dc=example,dc=org
@@ -38,7 +38,7 @@ uidNumber: 10002
 gidNumber: 10002
 homeDirectory: /home/manager
 loginShell: /bin/bash
-userPassword: manager_password
+userPassword: {SSHA}8KceulG2iu7/3A3LEKnZtJ8A4TqTpwjY
 
 # Usuario Developer
 dn: uid=developer,ou=users,dc=example,dc=org
@@ -55,7 +55,7 @@ uidNumber: 10003
 gidNumber: 10003
 homeDirectory: /home/developer
 loginShell: /bin/bash
-userPassword: developer_password
+userPassword: {SSHA}K0otyeL/UvMaaCfe2Nh4ua2oDkg1wF1P
 
 # Usuario adicional - Manager 2
 dn: uid=jdoe,ou=users,dc=example,dc=org
@@ -72,7 +72,7 @@ uidNumber: 10004
 gidNumber: 10004
 homeDirectory: /home/jdoe
 loginShell: /bin/bash
-userPassword: jdoe123
+userPassword: {SSHA}DIXQZ4aFQq2F82I/kInADjqRMX0gLhVN
 
 # Usuario adicional - Developer 2
 dn: uid=jsmith,ou=users,dc=example,dc=org
@@ -89,5 +89,5 @@ uidNumber: 10005
 gidNumber: 10005
 homeDirectory: /home/jsmith
 loginShell: /bin/bash
-userPassword: jsmith123
+userPassword: {SSHA}C1hHmVarZm1gPPTkOWk+/4OiIJOhnu2u
 

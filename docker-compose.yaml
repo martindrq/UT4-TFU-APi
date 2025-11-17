@@ -1,8 +1,105 @@
 # Docker Compose para Mini Gestor de Proyectos
-# Orquesta la API FastAPI + PostgreSQL con networking y volúmenes persistentes
+# Arquitectura de Microservicios: Gateway Service + API Backend + PostgreSQL + Redis + LDAP
+# Implementa el patrón Gatekeeper con servicios desacoplados
 
 services:
-  # Base de datos PostgreSQL
+  # ============================================================================
+  # API GATEWAY SERVICE - Punto de entrada único (Puerto 8080)
+  # ============================================================================
+  gateway:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: mini-gestor-gateway
+    restart: unless-stopped
+    environment:
+      # URL del backend (comunicación interna)
+      BACKEND_URL: http://app:8000
+      # URL del servicio de autenticación
+      AUTH_SERVICE_URL: http://auth:8002
+      # Redis para rate limiting y caché
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Configuración de seguridad
+      SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+    ports:
+      # Puerto EXTERNO del Gateway (único punto de entrada)
+      - "8080:8080"
+    networks:
+      - mini-gestor-network
+
+  # ============================================================================
+  # BACKEND API SERVICE - Servicio interno (Puerto 8000 - solo red interna)
+  # ============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mini-gestor-app
+    restart: unless-stopped
+    environment:
+      # Variables de entorno para conexión a DB
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-gestor_proyectos}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-gestor_proyectos}
+      # Configuración de reintentos de conexión a la base de datos
+      DB_MAX_RETRY_ATTEMPTS: ${DB_MAX_RETRY_ATTEMPTS:-5}
+      DB_RETRY_MIN_WAIT: ${DB_RETRY_MIN_WAIT:-1}
+      DB_RETRY_MAX_WAIT: ${DB_RETRY_MAX_WAIT:-10}
+      # Configuración de Redis para caché
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      CACHE_TTL: ${CACHE_TTL:-300}
+      # Configuración de LDAP para Federated Identity
+      LDAP_SERVER: ${LDAP_SERVER:-ldap://ldap:389}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-dc=example,dc=org}
+      LDAP_USER_DN_TEMPLATE: ${LDAP_USER_DN_TEMPLATE:-uid={username},ou=users,dc=example,dc=org}
+      # Configuración de JWT
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    # NOTA IMPORTANTE: Puerto 8000 NO expuesto externamente
+    # Solo accesible desde la red interna (a través del Gateway)
+    # Para desarrollo local directo, descomentar la siguiente línea:
+    # ports:
+    #   - "8000:8000"
+    expose:
+      - "8000"
+    networks:
+      - mini-gestor-network
+    volumes:
+      # Montar código en desarrollo (opcional, remover en producción)
+      - .:/app:ro
+
+  # ============================================================================
+  # AUTH SERVICE - Servicio de Autenticación (Puerto 8002 - solo red interna)
+  # ============================================================================
+  auth:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: mini-gestor-auth
+    restart: unless-stopped
+    environment:
+      # Configuración de LDAP para Federated Identity
+      LDAP_SERVER: ${LDAP_SERVER:-ldap://ldap:389}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-dc=example,dc=org}
+      LDAP_USER_DN_TEMPLATE: ${LDAP_USER_DN_TEMPLATE:-uid={username},ou=users,dc=example,dc=org}
+      # Configuración de JWT
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    # Puerto 8002 NO expuesto externamente - solo accesible internamente
+    expose:
+      - "8002"
+    networks:
+      - mini-gestor-network
+
+  # ============================================================================
+  # BASE DE DATOS POSTGRESQL
+  # ============================================================================
   db:
     image: postgres:15-alpine
     container_name: mini-gestor-db
@@ -20,62 +117,10 @@ services:
       - "5433:5432"
     networks:
       - mini-gestor-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-gestor_proyectos}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  # API FastAPI
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mini-gestor-api
-    restart: unless-stopped
-    environment:
-      # Variables de entorno para conexión a DB
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-gestor_proyectos}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-gestor_proyectos}
-      # Configuración de reintentos de conexión a la base de datos
-      DB_MAX_RETRY_ATTEMPTS: ${DB_MAX_RETRY_ATTEMPTS:-5}
-      DB_RETRY_MIN_WAIT: ${DB_RETRY_MIN_WAIT:-1}
-      DB_RETRY_MAX_WAIT: ${DB_RETRY_MAX_WAIT:-10}
-          # Configuración de Redis para caché
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      CACHE_TTL: ${CACHE_TTL:-300}
-      # Configuración de LDAP para Federated Identity
-      LDAP_SERVER: ${LDAP_SERVER:-ldap://ldap:389}
-      LDAP_BASE_DN: ${LDAP_BASE_DN:-dc=example,dc=org}
-      LDAP_USER_DN_TEMPLATE: ${LDAP_USER_DN_TEMPLATE:-uid={username},ou=users,dc=example,dc=org}
-      # Configuración de JWT
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      ldap:
-        condition: service_started
-    networks:
-      - mini-gestor-network
-    volumes:
-      # Montar código en desarrollo (opcional, remover en producción)
-      - .:/app:ro
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # Redis para caché (Cache-Aside Pattern)
+  # ============================================================================
+  # REDIS para caché (Cache-Aside Pattern) y rate limiting
+  # ============================================================================
   redis:
     image: redis:7-alpine
     container_name: mini-gestor-redis
@@ -93,7 +138,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # OpenLDAP para Federated Identity (Autenticación Externa)
+  # ============================================================================
+  # OPENLDAP para Federated Identity (Autenticación Externa)
+  # ============================================================================
   ldap:
     image: osixia/openldap:1.5.0
     container_name: mini-gestor-ldap
@@ -121,7 +168,9 @@ services:
       - ./init-ldap.ldif:/container/service/slapd/assets/test/init-ldap.ldif:ro
     command: --copy-service
 
-  # phpLDAPadmin para administración de LDAP (opcional)
+  # ============================================================================
+  # PHPLDAPADMIN para administración de LDAP (opcional)
+  # ============================================================================
   ldapadmin:
     image: osixia/phpldapadmin:0.9.0
     container_name: mini-gestor-ldapadmin
@@ -136,7 +185,9 @@ services:
     networks:
       - mini-gestor-network
 
-  # Adminer para administración de base de datos (opcional)
+  # ============================================================================
+  # ADMINER para administración de base de datos (opcional)
+  # ============================================================================
   adminer:
     image: adminer:4-standalone
     container_name: mini-gestor-adminer
@@ -150,7 +201,9 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: db
 
-# Volúmenes para persistencia de datos
+# ==============================================================================
+# VOLÚMENES para persistencia de datos
+# ==============================================================================
 volumes:
   postgres_data:
     driver: local
@@ -165,7 +218,9 @@ volumes:
     driver: local
     name: mini-gestor-ldap-config
 
-# Red personalizada para comunicación entre servicios
+# ==============================================================================
+# RED personalizada para comunicación entre servicios
+# ==============================================================================
 networks:
   mini-gestor-network:
     driver: bridge

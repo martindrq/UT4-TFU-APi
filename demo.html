@@ -32,7 +32,7 @@
             }
 
             body {
-                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-family: "Roboto", sans-serif;
                 background: var(--gray-100);
                 min-height: 100vh;
                 color: var(--gray-900);
@@ -732,48 +732,7 @@
                         <h4 style="margin-bottom: 15px; color: var(--gray-800)">📊 Resultados de Tests de Seguridad</h4>
                         <div id="securityResults"></div>
                     </div>
-
-                    <!-- Permisos por Rol -->
-                    <div>
-                        <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: var(--gray-700)">
-                            🎭 Permisos por Rol
-                        </h3>
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px">
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                "
-                            >
-                                <h4 style="font-size: 1.1rem; margin-bottom: 10px">👑 Admin</h4>
-                                <p style="font-size: 0.85rem; opacity: 0.9">Acceso total a todos los recursos</p>
-                            </div>
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                "
-                            >
-                                <h4 style="font-size: 1.1rem; margin-bottom: 10px">⭐ Manager</h4>
-                                <p style="font-size: 0.85rem; opacity: 0.9">Gestión completa de proyectos y tareas</p>
-                            </div>
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                "
-                            >
-                                <h4 style="font-size: 1.1rem; margin-bottom: 10px">💻 Developer</h4>
-                                <p style="font-size: 0.85rem; opacity: 0.9">Lectura y actualización de tareas</p>
-                            </div>
-                        </div>
-                    </div>
+                  
                 </div>
 
                 <!-- Demo Automática Tab -->
@@ -1064,51 +1023,6 @@
                         </div>
                     </div>
 
-                    <!-- Beneficios -->
-                    <div style="margin-bottom: 20px">
-                        <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: var(--gray-700)">
-                            📈 Beneficios del Patrón
-                        </h3>
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px">
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                    text-align: center;
-                                "
-                            >
-                                <h4 style="font-size: 2rem; margin-bottom: 5px">85-90%</h4>
-                                <p style="font-size: 0.9rem">Más rápido (< 50ms)</p>
-                            </div>
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                    text-align: center;
-                                "
-                            >
-                                <h4 style="font-size: 2rem; margin-bottom: 5px">10x</h4>
-                                <p style="font-size: 0.9rem">Mayor throughput</p>
-                            </div>
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                    text-align: center;
-                                "
-                            >
-                                <h4 style="font-size: 2rem; margin-bottom: 5px">100%</h4>
-                                <p style="font-size: 0.9rem">Absorción de picos</p>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Nota sobre Worker -->
                     <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px">
                         <h4 style="color: #92400e; margin-bottom: 8px; display: flex; align-items: center; gap: 8px">
@@ -1301,48 +1215,6 @@
                             </button>
                             <button class="btn" onclick="checkCacheStats()">Actualizar Estadísticas</button>
                             <button class="btn" onclick="demonstrateCache()">Demostración Cache HIT/MISS</button>
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 20px">
-                        <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: var(--gray-700)">📈 Beneficios</h3>
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px">
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                    text-align: center;
-                                "
-                            >
-                                <h4 style="font-size: 2rem; margin-bottom: 5px">10-100x</h4>
-                                <p style="font-size: 0.9rem">Más rápido en cache hits</p>
-                            </div>
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                    text-align: center;
-                                "
-                            >
-                                <h4 style="font-size: 2rem; margin-bottom: 5px">70-80%</h4>
-                                <p style="font-size: 0.9rem">Reducción carga en DB</p>
-                            </div>
-                            <div
-                                style="
-                                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                                    color: white;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                    text-align: center;
-                                "
-                            >
-                                <h4 style="font-size: 2rem; margin-bottom: 5px">5-10x</h4>
-                                <p style="font-size: 0.9rem">Más requests/segundo</p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -2108,6 +1980,11 @@
 
                 // Test 1: Crear proyecto (requiere admin o manager)
                 try {
+                    // Agregar timestamp al nombre para evitar duplicados
+                    const timestamp = Date.now();
+                    const randomSuffix = Math.floor(Math.random() * 1000);
+                    const projectName = `Test Permisos ${timestamp}-${randomSuffix}`;
+                    
                     const response = await fetch(`${API_URL}/api/v1/proyectos`, {
                         method: "POST",
                         headers: {
@@ -2115,8 +1992,8 @@
                             "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
-                            nombre: "Test Permisos",
-                            descripcion: `Proyecto de prueba ${Date.now()}`,
+                            nombre: projectName,
+                            descripcion: `Proyecto de prueba de permisos - ${new Date().toLocaleString()}`,
                             estado: "activo",
                         }),
                     });

@@ -1,26 +1,45 @@
 """
-Módulo de configuración - External Configuration Store Pattern
+Módulo de Configuración
+
+Contiene:
+- Configuración centralizada (External Configuration Store Pattern)
+- Configuración de base de datos con retry pattern
+- Middleware de confianza con Gateway
+- Sistema de permisos y roles
 """
-from .config import settings, check_configuration
+
+from .config import settings
 from .database import (
     engine,
     SessionLocal,
-    Base,
     get_db,
     create_tables,
     test_connection,
-    check_db_health
+    check_db_health,
+    Base
 )
+from .gateway_trust import (
+    gateway_trust_middleware,
+    get_current_user_from_gateway,
+    GatewayTrustMiddleware
+)
+from .permissions import PermissionChecker
 
 __all__ = [
+    # Configuración
     "settings",
-    "check_configuration",
+    # Base de datos
     "engine",
     "SessionLocal",
-    "Base",
     "get_db",
     "create_tables",
     "test_connection",
-    "check_db_health"
+    "check_db_health",
+    "Base",
+    # Gateway trust
+    "gateway_trust_middleware",
+    "get_current_user_from_gateway",
+    "GatewayTrustMiddleware",
+    # Permisos
+    "PermissionChecker"
 ]
-

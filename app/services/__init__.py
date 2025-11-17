@@ -40,15 +40,6 @@ from .queue_service import (
     REDIS_DB_QUEUE
 )
 
-from .auth_service import (
-    LDAPAuthService,
-    TokenService,
-    ldap_service,
-    token_service,
-    get_ldap_service,
-    get_token_service
-)
-
 __all__ = [
     # Cache
     "init_redis",
@@ -85,14 +76,6 @@ __all__ = [
     "TAREA_QUEUE",
     "REDIS_HOST",
     "REDIS_PORT",
-    "REDIS_DB_QUEUE",
-    
-    # Auth
-    "LDAPAuthService",
-    "TokenService",
-    "ldap_service",
-    "token_service",
-    "get_ldap_service",
-    "get_token_service"
+    "REDIS_DB_QUEUE"
 ]
 

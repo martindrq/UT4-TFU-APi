@@ -1,5 +1,30 @@
 # README - Mini Gestor de Proyectos API
 
+## 🏗️ Arquitectura de Microservicios
+
+Este proyecto implementa una **arquitectura de microservicios desacoplados** con:
+
+- 🛡️ **Gateway Service** (Puerto 8080): Punto de entrada único, seguridad y validación
+- 📦 **Backend Service** (Puerto 8000): Lógica de negocio principal (usuarios, proyectos, tareas)
+- 🔐 **Auth Service** (Puerto 8002): Servicio dedicado para autenticación con LDAP
+- 🗄️ **PostgreSQL**: Base de datos para persistencia
+- 💾 **Redis**: Caché y cola de mensajes
+- 🔑 **OpenLDAP**: Servidor de autenticación federada
+
+```
+Cliente → [Gateway:8080] → [Backend:8000] → PostgreSQL
+          └── Seguridad     └── Usuarios
+           (enrutamiento)   └── Proyectos
+                            └── Tareas
+                            [Auth:8002] ┘
+                            └── LDAP Auth    Redis
+                            └── JWT          LDAP
+```
+
+**Toda la documentación está en este README**
+
+---
+
 ## Descripción del Proyecto
 
 API REST completa para un mini gestor de proyectos que implementa tres componentes modulares:
@@ -46,7 +71,17 @@ API REST completa para un mini gestor de proyectos que implementa tres component
 - **Reintentos Automáticos**: Sistema robusto de reintentos con límites
 - **Seguimiento de Estado**: job_id para monitorear procesamiento
 
-### 7. Patrones de Seguridad
+### 7. Arquitectura de Microservicios
+- **Gateway Service**: API Gateway independiente como punto de entrada único con enrutamiento inteligente
+- **Backend Service**: Lógica de negocio principal (usuarios, proyectos, tareas)
+- **Auth Service**: Servicio independiente dedicado para autenticación con LDAP y generación de tokens JWT
+- **Base de Datos**: PostgreSQL para persistencia de datos
+- **Caché y Colas**: Redis para Cache-Aside pattern y Queue-Based Load Leveling
+- **Comunicación Interna**: Servicios se comunican a través de red privada Docker
+- **Escalabilidad Independiente**: Cada servicio puede escalar por separado
+- **Enrutamiento Dinámico**: Gateway enruta solicitudes al servicio correspondiente según la ruta
+
+### 8. Patrones de Seguridad
 
 #### 7.1. Gatekeeper (API Gateway)
 - **Control de Acceso Centralizado**: Todas las solicitudes pasan por un punto de control único
@@ -75,6 +110,7 @@ API REST completa para un mini gestor de proyectos que implementa tres component
 - **Docker Integration**: Variables interpoladas en docker-compose.yaml
 - **Validación Automática**: Verificación de configuración al inicio
 - **Sin Recompilación**: Modificar parámetros sin cambiar código
+- **12 Factor App Compliant**: Siguiendo mejores prácticas de cloud native
 
 ## Estructura del Proyecto
 
@@ -87,7 +123,6 @@ El proyecto está organizado siguiendo una **arquitectura en capas técnicas** q
 - **models/**: Modelos ORM (SQLAlchemy) que representan las entidades
 - **schemas/**: DTOs con Pydantic para validación de entrada/salida
 - **services/**: Lógica de negocio reutilizable (auth, cache, queue)
-- **middlewares/**: Procesamiento transversal de requests (seguridad, logging)
 - **routers/**: Controladores que exponen los endpoints HTTP
 
 ```
@@ -98,7 +133,9 @@ UT3-TFU-APi/
 │   ├── config/             # 🔧 Capa de Configuración
 │   │   ├── __init__.py
 │   │   ├── config.py       # ⚙️ External Configuration Store Pattern
-│   │   └── database.py     # 🗄️ SQLAlchemy + Retry Pattern
+│   │   ├── database.py     # 🗄️ SQLAlchemy + Retry Pattern
+│   │   ├── gateway_trust.py # 🛡️ Middleware de confianza con Gateway
+│   │   └── permissions.py  # 🔐 Sistema de permisos y roles
 │   │
 │   ├── models/             # 📊 Capa de Modelos (ORM)
 │   │   ├── __init__.py
@@ -110,36 +147,45 @@ UT3-TFU-APi/
 │   │
 │   ├── services/           # 💼 Capa de Lógica de Negocio
 │   │   ├── __init__.py
-│   │   ├── auth_service.py    # 🔐 Federated Identity + JWT
 │   │   ├── cache_service.py   # ⚡ Cache-Aside Pattern
 │   │   └── queue_service.py   # 📋 Queue-Based Load Leveling
 │   │
-│   ├── middlewares/        # 🛡️ Capa de Middlewares
-│   │   ├── __init__.py
-│   │   └── gatekeeper.py   # Gatekeeper Pattern (seguridad)
 │   │
 │   ├── routers/            # 🌐 Capa de Controladores (API)
 │   │   ├── __init__.py
-│   │   ├── auth.py         # 🔐 Endpoints de autenticación
 │   │   ├── usuarios.py     # 👥 CRUD de usuarios
 │   │   ├── proyectos.py    # 📁 CRUD de proyectos + caché
 │   │   └── tareas.py       # ✓ CRUD de tareas + queue
 │   │
 │   └── worker.py           # 🔄 Worker de procesamiento asíncrono
+├── gateway-service/        # 🛡️ Servicio Gateway independiente
+│   ├── main.py            # API Gateway (seguridad, rate limiting, enrutamiento)
+│   ├── Dockerfile         # Imagen Docker del Gateway
+│   └── requirements.txt   # Dependencias del Gateway
+│
+├── auth-service/           # 🔐 Servicio de Autenticación independiente
+│   ├── main.py            # Servicio dedicado para autenticación LDAP y JWT
+│   ├── Dockerfile         # Imagen Docker del servicio de Auth
+│   └── requirements.txt   # Dependencias del servicio de Auth
+│
 ├── scripts/
 │   ├── demo_completa.sh     # Script demostración (Linux/Mac)
 │   ├── demo_completa.bat    # Script demostración (Windows)
 │   ├── start_worker.sh      # ⚡ Iniciar worker de colas (Linux/Mac)
 │   ├── start_worker.bat     # ⚡ Iniciar worker de colas (Windows)
-│   ├── demo_load_leveling.py # 🚀 Demo de Queue-Based Load Leveling
-│   └── README.md            # Documentación de scripts
-├── main.py                  # Aplicación FastAPI principal
+│   └── demo_load_leveling.py # 🚀 Demo de Queue-Based Load Leveling
+│
+├── start-services.sh        # 🚀 Script inicio rápido (todos los servicios)
+├── stop-services.sh         # 🛑 Script detención de servicios
+│
+├── main.py                  # 🚀 Aplicación FastAPI Backend
 ├── demo.html                # 🎨 Demo web interactiva (servida por FastAPI)
-├── requirements.txt         # Dependencias Python (incluye redis, tenacity)
-├── Dockerfile              # Imagen Docker para la API
-├── docker-compose.yaml     # Orquestación completa (PostgreSQL + Redis)
-├── .env                    # Variables de entorno
-├── .dockerignore           # Archivos ignorados por Docker
+├── requirements.txt         # 📦 Dependencias Python Backend
+├── Dockerfile              # 🐳 Imagen Docker del Backend
+├── docker-compose.yaml     # 🎼 Orquestación (Gateway + Backend + DB + Redis + LDAP)
+├── .env                    # ⚙️ Variables de entorno
+├── .dockerignore           # 🚫 Archivos ignorados por Docker
+│
 ├── init-db.sql             # Script inicialización PostgreSQL
 ├── init-ldap.ldif          # 🔐 Script inicialización LDAP con usuarios de prueba
 ├── README.md               # Este archivo
@@ -149,9 +195,16 @@ UT3-TFU-APi/
 
 ### Prerrequisitos
 - Docker y docker-compose instalados
-- Puerto 8000, 5432 y 8080 disponibles
+- Puertos disponibles: 8080 (Gateway), 5433 (PostgreSQL), 6379 (Redis), 389 (LDAP)
 
-### Despliegue con Docker
+### 🚀 Despliegue Rápido (Recomendado)
+
+**Opción 1: Script de inicio automático**
+```bash
+./start-services.sh
+```
+
+**Opción 2: Docker Compose manual**
 
 1. **Clonar/Descargar el proyecto**
    ```bash
@@ -160,47 +213,92 @@ UT3-TFU-APi/
    cd UT3-TFU-APi
    ```
 
-2. **Construir y ejecutar los contenedores**
+2. **Construir y ejecutar todos los servicios**
    ```bash
    docker-compose up --build -d
    ```
+   
+   Esto levantará:
+   - 🛡️ Gateway Service (puerto 8080) - Punto de entrada único
+   - 📦 Backend Service (puerto 8000 - red interna) - Usuarios, proyectos, tareas
+   - 🔐 Auth Service (puerto 8002 - red interna) - Autenticación LDAP y JWT
+   - 🗄️ PostgreSQL (puerto 5433) - Base de datos
+   - 💾 Redis (puerto 6379) - Caché y colas
+   - 🔑 OpenLDAP (puerto 389)
+   - 🔧 Herramientas de administración (Adminer, phpLDAPadmin)
 
 3. **Verificar que los servicios están ejecutándose**
    ```bash
    docker-compose ps
    ```
 
-4. **Verificar la API**
+4. **Verificar el Gateway (punto de entrada)**
    ```bash
-   curl http://localhost:8000/health
+   curl http://localhost:8080/gateway/health
    ```
+
+5. **Verificar el Backend (a través del Gateway)**
+   ```bash
+   curl http://localhost:8080/health
+   ```
+
+### 📊 Arquitectura de Servicios
+
+```
+Cliente → Gateway:8080 → Backend:8000 (usuarios, proyectos, tareas) → PostgreSQL:5432
+          (enrutamiento)  Auth:8002 (autenticación LDAP + JWT)        ↑
+                ↓                         ↓                            │
+              Redis:6379                LDAP:389                       └──────┘
+```
+
+**Enrutamiento del Gateway:**
+- `/api/v1/auth/*` → Auth Service (puerto 8002)
+- `/api/v1/usuarios/*` → Backend Service (puerto 8000)
+- `/api/v1/proyectos/*` → Backend Service (puerto 8000)
+- `/api/v1/tareas/*` → Backend Service (puerto 8000)
+
+**IMPORTANTE**: Todas las solicitudes de clientes deben ir al Gateway (puerto 8080), no directamente al Backend.
 
 ### Servicios Disponibles
 
-- **API FastAPI**: http://localhost:8000
-  - **Demo Web Interactiva**: http://localhost:8000/demo 
+- **API Gateway**: http://localhost:8080 🛡️ **PUNTO DE ENTRADA ÚNICO**
+  - Health Check: http://localhost:8080/gateway/health
+  - Enruta automáticamente a los servicios correspondientes
+- **Backend API (usuarios, proyectos, tareas)**: http://localhost:8000 (red interna)
+  - **Demo Web Interactiva**: http://localhost:8000/demo 🎨 ⭐
   - Documentación: http://localhost:8000/docs
+  - ReDoc: http://localhost:8000/redoc
   - Health Check: http://localhost:8000/health
-  - **Login LDAP**: http://localhost:8000/api/v1/auth/login 
-  - **Estado Auth**: http://localhost:8000/api/v1/auth/status
+- **Auth Service**: http://localhost:8002 (red interna) 🆕 **NUEVO MICROSERVICIO**
+  - Health Check: http://localhost:8002/health
+  - Documentación: http://localhost:8002/docs
+  - Login LDAP: http://localhost:8002/auth/login
+  - Validación de tokens: http://localhost:8002/auth/validate
 - **PostgreSQL**: localhost:5432
   - Usuario: postgres
   - Contraseña: password
   - Base de datos: gestor_proyectos
-- **OpenLDAP** (Federated Identity): ldap://localhost:389
+- **OpenLDAP** (Federated Identity): ldap://localhost:389 🔐 **NUEVO**
   - Base DN: dc=example,dc=org
   - Admin DN: cn=admin,dc=example,dc=org
   - Admin Password: admin_password
   - **phpLDAPadmin**: http://localhost:8082 (Interfaz web de administración)
-- **Redis** (Cache + Queue): localhost:6379
-- **Adminer** (Administrador BD): http://localhost:8080
+- **Redis** (Cache + Queue compartida): localhost:6379
+- **Adminer** (Administrador BD): http://localhost:8081
 
 ## Endpoints Principales
 
+### GestorUsuarios (`/api/v1/usuarios`)
+- `POST /` - Crear usuario
+- `GET /` - Listar usuarios (con paginación)
+- `GET /{id}` - Obtener usuario específico
+- `PUT /{id}` - Actualizar usuario
+- `DELETE /{id}` - Eliminar usuario
+
 ### GestorProyectos (`/api/v1/proyectos`)
 - `POST /` - Crear proyecto
-- `GET /` - Listar proyectos (con filtros)
-- `GET /{id}` - Obtener proyecto específico
+- `GET /` - Listar proyectos (con filtros y caché)
+- `GET /{id}` - Obtener proyecto específico (con caché)
 - `PUT /{id}` - Actualizar proyecto
 - `DELETE /{id}` - Eliminar proyecto
 - `POST /{id}/asignar_usuario` - Asignar usuario a proyecto
@@ -218,12 +316,14 @@ UT3-TFU-APi/
 - `GET /jobs/{job_id}/result` - 🆕 Obtener resultado de job completado
 - `GET /queue/stats` - 🆕 Estadísticas de la cola
 
-### 🔐 Autenticación (Gatekeeper + Federated Identity) (`/api/v1/auth`)
+### 🔐 Autenticación (`/api/v1/auth`) 🆕 **SERVICIO INDEPENDIENTE**
+**Nota**: Este componente ahora corre como microservicio independiente (puerto 8002) dedicado a autenticación con LDAP y generación de tokens JWT.
+
 - `POST /login` - 🔐 Login con LDAP (Federated Identity)
-- `GET /me` - 🔐 Información del usuario actual
+- `GET /me` - 🔐 Información del usuario del token
 - `GET /status` - Estado del sistema de autenticación
+- `POST /validate` - Validar un token JWT
 - `POST /logout` - Cerrar sesión
-- `GET /permissions` - 🔐 Permisos del usuario según rol
 
 ## ⚡ Queue-Based Load Leveling - Uso Rápido
 
@@ -242,8 +342,10 @@ scripts\start_worker.bat    # Windows
 
 **Terminal 2 - Crear Tarea:**
 ```bash
-curl -X POST http://localhost:8000/tareas/ \
+# IMPORTANTE: Usar puerto 8080 (Gateway), no 8000
+curl -X POST http://localhost:8080/api/v1/tareas/ \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <tu-token>" \
   -d '{"titulo":"Mi tarea","proyecto_id":1}'
 
 # Respuesta inmediata con job_id:
@@ -252,7 +354,8 @@ curl -X POST http://localhost:8000/tareas/ \
 
 **Consultar Estado:**
 ```bash
-curl http://localhost:8000/tareas/jobs/f47ac10b-...
+curl http://localhost:8080/api/v1/tareas/jobs/f47ac10b-... \
+  -H "Authorization: Bearer <tu-token>"
 # {"status":"completed","message":"Tarea creada exitosamente"}
 ```
 
@@ -260,6 +363,7 @@ curl http://localhost:8000/tareas/jobs/f47ac10b-...
 ```bash
 python scripts/demo_load_leveling.py
 ```
+
 ## 🔐 Gatekeeper + Federated Identity - Uso Rápido
 
 Los patrones **Gatekeeper** y **Federated Identity** están implementados para proporcionar seguridad robusta:
@@ -324,9 +428,9 @@ curl -X GET http://localhost:8000/api/v1/auth/me \
 - Login DN: `cn=admin,dc=example,dc=org`
 - Password: `admin_password`
 
-## Demo Interactiva Web
+## 🎨 Demo Interactiva Web
 
-**Interfaz visual profesional integrada en FastAPI**
+**Interfaz visual profesional integrada en FastAPI** ⭐ **RECOMENDADA PARA PRESENTACIONES**
 
 ```
 URL: http://localhost:8000/demo
@@ -378,6 +482,14 @@ Importar la colección desde: http://localhost:8000/docs → "Download OpenAPI s
 - **Contenedores**: Docker + docker-compose
 - **Servidor**: Uvicorn
 - **Administrador BD**: Adminer
+
+## Métricas de Escalabilidad
+
+- **Stateless**: ✅ Sin estado en memoria
+- **Paginación**: ✅ Límite configurable de resultados
+- **Conexiones BD**: ✅ Pool de conexiones optimizado
+- **Health Checks**: ✅ Monitoreo de contenedores
+- **Horizontal Scaling**: ✅ Múltiples instancias compatibles
 
 ## Comandos Docker Útiles
 
@@ -450,6 +562,16 @@ database_url = settings.DATABASE_URL
 redis_host = settings.REDIS_HOST
 jwt_secret = settings.JWT_SECRET_KEY
 ```
+
+### Configuración por Entorno
+
+El mismo código se puede desplegar en múltiples entornos con diferentes configuraciones:
+
+- **Desarrollo Local**: `.env` con localhost
+- **Docker**: `.env` con nombres de servicios Docker
+- **Staging**: `.env` con servidores de staging
+- **Producción**: `.env` con configuración productiva
+
 ### Variables Principales
 
 | Variable | Descripción | Valor por Defecto |
@@ -509,4 +631,3 @@ jwt_secret = settings.JWT_SECRET_KEY
 - [x] Configuración flexible vía variables de entorno
 
 ---
-
